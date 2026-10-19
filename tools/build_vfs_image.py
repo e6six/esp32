@@ -1,30 +1,46 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Генератор образа файловой системы LittleFS v2 (vfs_widgets.bin) для ESP32-2432S028 / S024 / W328.
+Генератор образа файловой системы LittleFS v2 (vfs_widgets.bin) для ESP32-2432S024R / S028 (L1435-2.4).
 Записывается по адресу 0x343000 (раздел vfs, 189 блоков по 4096 байт).
-При старте автоматически читает JSON-конфигурацию пользователя из блока 160 раздела vfs (0x3E3000).
+Хранит конфигурацию в /config.txt (которая патчется прямо в браузере перед прошивкой)
+и дублирует чтение из блока 160 (0x3E3000).
 """
 
 import os
 from littlefs import LittleFS
 
-BOOT_PY = """# boot.py — ESP32 CYD (GPIO 27 & GPIO 21 Backlight + SPI CS Isolation)
+BOOT_PY = """# boot.py — ESP32-2432S024R (L1435-2.4) / 2432S028
 import gc
 import machine
 
-# Изолируем CS тачскрина (GPIO 33) и SD-карты (GPIO 5) в HIGH до старта экрана,
-# чтобы исключить коллизию на общей шине SPI1 (SCK=14, MOSI=13, MISO=12) и полосы на экране!
+# 1. Изолируем CS тачскрина (GPIO 33) и SD-карты (GPIO 5) в HIGH (1)
 try:
     machine.Pin(33, machine.Pin.OUT, value=1)
     machine.Pin(5, machine.Pin.OUT, value=1)
 except Exception:
     pass
 
+# 2. Гасим яркий красный RGB-светодиод (GPIO 4, 16, 17 — активный LOW: 1 = ВЫКЛ)
+try:
+    machine.Pin(4, machine.Pin.OUT, value=1)
+    machine.Pin(16, machine.Pin.OUT, value=1)
+    machine.Pin(17, machine.Pin.OUT, value=1)
+except Exception:
+    pass
+
 gc.collect()
 """
 
-MAIN_PY = """# main.py — ESP32 CYD (320x240) 10 Clocks, Calendars, Weather + Deep Hardware Scanner
+DEFAULT_CFG_BYTES = (
+    b'CYDCFG1:{"cydVariant":"s024_perfect","wifiSsid":"","wifiPassword":"",'
+    b'"cityEn":"Moscow","latitude":55.7558,"longitude":37.6173,"timezoneOffset":3,'
+    b'"selectedWidget":"v1_classic_cal","notes":["Morning coffee & warmup",'
+    b'"Check daily tasks","Evening walk 19:00"],"eventTitle":"NEW YEAR",'
+    b'"eventDays":"73 DAYS","tempC":14,"windMs":3.5}\x00'
+).ljust(2048, b" ")
+
+MAIN_PY = """# main.py — ESP32-2432S024R (L1435-2.4) / 2432S028 10 Clocks, Calendars, Weather + Touch
 import os
 import gc
 import sys
@@ -37,15 +53,17 @@ import lcd_bus
 import ili9341
 import task_handler
 
-# 1. Надёжно удерживаем CS=33 (XPT2046 на платах с подсветкой GPIO 27) и CS=5 (SD) в HIGH (1),
-# чтобы тачскрин НЕ мешал DMA-передаче картинки на экран по шине SPI1 (14/13/12)!
+# Удерживаем CS=33 и CS=5 в HIGH, гасим красный RGB LED (4, 16, 17 -> 1)
 pin_touch_cs = machine.Pin(33, machine.Pin.OUT, value=1)
 pin_sd_cs = machine.Pin(5, machine.Pin.OUT, value=1)
+led_r = machine.Pin(4, machine.Pin.OUT, value=1)
+led_g = machine.Pin(16, machine.Pin.OUT, value=1)
+led_b = machine.Pin(17, machine.Pin.OUT, value=1)
 
-print("CYD_BOOT_START: Reading config from 0x3E3000...")
+print("CYD_BOOT_START: Loading configuration...")
 
 cfg = {
-    "cydVariant": "variant4_bl27",
+    "cydVariant": "s024_perfect",
     "wifiSsid": "",
     "wifiPassword": "",
     "cityEn": "Moscow",
@@ -60,6 +78,23 @@ cfg = {
     "windMs": 3.5
 }
 
+# 1. Читаем конфиг напрямую из файла /config.txt в файловой системе LittleFS
+cfg_loaded = False
+try:
+    with open("/config.txt", "rb") as f:
+        raw_file = f.read()
+    if raw_file[:8] == b"CYDCFG1:":
+        end_idx = raw_file.find(b"\\x00", 8)
+        if end_idx > 8:
+            loaded = json.loads(bytes(raw_file[8:end_idx]).decode("utf-8"))
+            for k in loaded:
+                cfg[k] = loaded[k]
+            cfg_loaded = True
+            print("CYD_CONFIG_FILE_OK:", cfg.get("selectedWidget"), cfg.get("cydVariant"))
+except Exception as e:
+    print("CYD_CONFIG_FILE_ERR:", e)
+
+# 2. Резервное чтение из сектора 160 (0x3E3000), если /config.txt не был пропатчен
 try:
     from flashbdev import bdev
     raw = bytearray(4096)
@@ -70,85 +105,51 @@ try:
             loaded = json.loads(bytes(raw[8:end_idx]).decode("utf-8"))
             for k in loaded:
                 cfg[k] = loaded[k]
-            print("CYD_CONFIG_LOADED:", cfg.get("selectedWidget"), cfg.get("cydVariant"))
-except Exception as e:
-    print("CYD_CONFIG_DEFAULT:", e)
-
-# 2. Быстрое сканирование периферии перед инициализацией дисплея
-i2c_found = []
-try:
-    i2c_test = machine.SoftI2C(scl=machine.Pin(32), sda=machine.Pin(33), freq=100000, timeout=5000)
-    i2c_found = i2c_test.scan()
+            print("CYD_CONFIG_SECTOR_OK:", cfg.get("selectedWidget"), cfg.get("cydVariant"))
 except Exception:
     pass
-# Возвращаем GPIO 33 строго в HIGH (1) для защиты SPI1!
-pin_touch_cs = machine.Pin(33, machine.Pin.OUT, value=1)
 
-variant = str(cfg.get("cydVariant", "variant4_bl27"))
+variant = str(cfg.get("cydVariant", "s024_perfect"))
 
-# По умолчанию включаем оба пина подсветки (GPIO 27 и GPIO 21), чтобы экран горел на любой ревизии!
+# Настройки специально под матрицу L1435-2.4 (ESP32-2432S024R, подсветка GPIO 27):
+# По фото 1 (Профиль 4.3): ориентация rot_hex=0x60 и порядок каналов RGB (use_bgr=False) ИДЕАЛЬНЫ,
+# а для тёмного фона (#070B14) вместо белого нужно отправить команду 0x20 (INVOFF) вместо 0x21 (INVON)!
 bl_pin = 27
 aux_bl_pin = 21
-driver_mode = "ili9341_1"
 rot_hex = 0x60
-use_bgr = True
+use_bgr = False
+inv_cmd = 0x20  # 0x20 = INVOFF (тёмный фон #070B14), 0x21 = INVON (инверсия)
 byte_swap = 1
 spi_freq = 16000000
 
-if variant == "variant4_bl27":
-    # Профиль 4.1 (Основной для GPIO 27): ILI9341 Type 1, ориентация 0x60 (Mirror X, как в 2432S024R), BGR
-    bl_pin = 27
-    aux_bl_pin = 21
-    driver_mode = "ili9341_1"
-    rot_hex = 0x60
-    use_bgr = True
-    byte_swap = 1
-elif variant == "bl27_rot20":
-    # Профиль 4.2 (GPIO 27): ILI9341 Type 1, ориентация 0x20, BGR
-    bl_pin = 27
-    aux_bl_pin = 21
-    driver_mode = "ili9341_1"
-    rot_hex = 0x20
-    use_bgr = True
-    byte_swap = 1
-elif variant == "bl27_st7789":
-    # Профиль 4.3 (GPIO 27): Чистый драйвер ST7789 IPS (для JC2432W328 / 2432S032 / 2432S028-ST7789)
-    bl_pin = 27
-    aux_bl_pin = 21
-    driver_mode = "st7789"
+if variant in ("s024_perfect", "variant4_bl27", "standard"):
+    # Профиль 4.1 (Идеальный для вашей платы L1435-2.4): rot=0x60, RGB, INVOFF (0x20) -> Тёмный фон и правильные цвета!
     rot_hex = 0x60
     use_bgr = False
-    byte_swap = 1
-elif variant == "bl27_type2_e0":
-    # Профиль 4.4 (GPIO 27): ILI9341 Type 2, ориентация 0xE0, RGB (без byte_swap искажений)
-    bl_pin = 27
-    aux_bl_pin = 21
-    driver_mode = "ili9341_2"
-    rot_hex = 0xE0
-    use_bgr = False
-    byte_swap = 1
-elif variant == "standard":
-    bl_pin = 21
-    aux_bl_pin = 27
-    driver_mode = "ili9341_1"
-    rot_hex = 0x20
+    inv_cmd = 0x20
+elif variant == "s024_bgr_inv0":
+    # Профиль 4.2: rot=0x60, BGR, INVOFF (0x20) — если синий и красный поменялись местами
+    rot_hex = 0x60
     use_bgr = True
-    byte_swap = 1
-elif variant == "variant2":
-    bl_pin = 21
-    aux_bl_pin = 27
-    driver_mode = "ili9341_2"
-    rot_hex = 0xE0
+    inv_cmd = 0x20
+elif variant in ("bl27_st7789", "s024_rgb_inv1"):
+    # Профиль 4.3 (как на вашем первом фото — светлый инверсный фон): rot=0x60, RGB, INVON (0x21)
+    rot_hex = 0x60
     use_bgr = False
-    byte_swap = 1
+    inv_cmd = 0x21
+elif variant in ("bl27_type2_e0", "s024_bgr_inv1"):
+    # Профиль 4.4: rot=0x60, BGR, INVON (0x21)
+    rot_hex = 0x60
+    use_bgr = True
+    inv_cmd = 0x21
 
 try:
     machine.Pin(aux_bl_pin, machine.Pin.OUT, value=1)
 except Exception:
     pass
 
-print("CYD_DISPLAY_INIT: variant={}, bl_pin={}, mode={}, rot={}".format(
-    variant, bl_pin, driver_mode, hex(rot_hex)
+print("CYD_DISPLAY_INIT: variant={}, bl_pin={}, rot={}, bgr={}, inv={}".format(
+    variant, bl_pin, hex(rot_hex), use_bgr, hex(inv_cmd)
 ))
 
 gc.collect()
@@ -169,36 +170,35 @@ display = ili9341.ILI9341(
 display._ORIENTATION_TABLE = (rot_hex, 0x0, 0x0, 0x0)
 display.set_power(True)
 
-if driver_mode == "st7789":
-    # Чистая инициализация контроллера ST7789 без конфликтующих регистров питания ILI9341
-    display.set_params(0x01)
-    time.sleep_ms(120)
-    display.set_params(0x11)
-    time.sleep_ms(120)
-    display.set_params(0x3A, bytearray([0x55]))
-    mad_val = rot_hex | (0x08 if use_bgr else 0x00)
-    display.set_params(0x36, bytearray([mad_val]))
-    display.set_params(0xB2, bytearray([0x0C, 0x0C, 0x00, 0x33, 0x33]))
-    display.set_params(0xB7, bytearray([0x35]))
-    display.set_params(0xBB, bytearray([0x19]))
-    display.set_params(0xC0, bytearray([0x2C]))
-    display.set_params(0xC2, bytearray([0x01]))
-    display.set_params(0xC3, bytearray([0x12]))
-    display.set_params(0xC4, bytearray([0x20]))
-    display.set_params(0xC6, bytearray([0x0F]))
-    display.set_params(0xD0, bytearray([0xA4, 0xA1]))
-    display.set_params(0x21)
-    display.set_params(0x13)
-    time.sleep_ms(20)
-    display.set_params(0x29)
-    time.sleep_ms(50)
-    display._initilized = True
-elif driver_mode == "ili9341_2":
-    display.init(2)
-else:
-    display.init(1)
+# Чистая инициализация из Профиля 4.3 (которая дала чёткую картинку без полос на фото 1!),
+# но с переключением инверсии 0x20 (INVOFF) для глубокого тёмного фона #070B14!
+display.set_params(0x01)  # SWRESET — сбрасывает старые настройки матрицы
+time.sleep_ms(120)
+display.set_params(0x11)  # SLPOUT
+time.sleep_ms(120)
+display.set_params(0x3A, bytearray([0x55]))  # 16-bit RGB565
+mad_val = rot_hex | (0x08 if use_bgr else 0x00)
+display.set_params(0x36, bytearray([mad_val]))
+display.set_params(0xB2, bytearray([0x0C, 0x0C, 0x00, 0x33, 0x33]))
+display.set_params(0xB7, bytearray([0x35]))
+display.set_params(0xBB, bytearray([0x19]))
+display.set_params(0xC0, bytearray([0x2C]))
+display.set_params(0xC2, bytearray([0x01]))
+display.set_params(0xC3, bytearray([0x12]))
+display.set_params(0xC4, bytearray([0x20]))
+display.set_params(0xC6, bytearray([0x0F]))
+display.set_params(0xD0, bytearray([0xA4, 0xA1]))
+display.set_params(inv_cmd)  # 0x20 = Тёмный фон, 0x21 = Светлый инверсный фон
+display.set_params(0x13)  # NORON
+time.sleep_ms(20)
+display.set_params(0x29)  # DISPON
+time.sleep_ms(50)
+display._initilized = True
 
 display.set_rotation(lv.DISPLAY_ROTATION._0)
+# Повторно фиксируем MADCTL и INV после set_rotation, чтобы LVGL не перезаписал их
+display.set_params(0x36, bytearray([mad_val]))
+display.set_params(inv_cmd)
 display.set_backlight(100)
 try:
     machine.Pin(27, machine.Pin.OUT, value=1)
@@ -206,11 +206,17 @@ try:
 except Exception:
     pass
 
-# Запускаем системный обработчик LVGL (без конфликтующего XPT2046 на GPIO 39/33!)
-th = task_handler.TaskHandler()
+# Инициализируем резистивный тачскрин XPT2046 на общей шине SPI1 (CS=33, IRQ=36) для платы ESP32-2432S024R!
+touch_dev = None
+try:
+    touch_dev = machine.SPI.Device(spi_bus=spi_bus, freq=1000000, cs=33)
+except Exception as e:
+    print("TOUCH_DEV_ERR:", e)
 
-# Кнопка BOOT (GPIO 0) на плате также переключает виджеты по кругу
+pin_touch_irq = machine.Pin(36, machine.Pin.IN)
 btn_boot = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
+
+th = task_handler.TaskHandler()
 
 WIFI_SSID = str(cfg.get("wifiSsid", ""))
 WIFI_PASS = str(cfg.get("wifiPassword", ""))
@@ -314,7 +320,6 @@ def dow_mon_first(y, m, d):
     w = (y + y // 4 - y // 100 + y // 400 + t_tbl[m - 1] + d) % 7
     return (w + 6) % 7
 
-# Оптимизированная отрисовка всех 9 виджетов (минимум объектов LVGL -> мгновенная отрисовка без лагов!)
 def build_v1():
     lbl_top_left.set_text("1/9 CLASSIC CALENDAR")
     t = get_dt()
@@ -364,7 +369,6 @@ def build_v1():
     mhdr.set_style_text_color(lv.color_hex(0x00E5FF), 0)
     mhdr.align(lv.ALIGN.TOP_MID, 0, 6)
 
-    # Строим всю сетку месяца ОДНИМ текстовым блоком (в 30 раз быстрее и легче для ОЗУ!)
     first_col = dow_mon_first(t[0], t[1], 1)
     tot_days = days_in_month(t[0], t[1])
     lines = ["Mo Tu We Th Fr Sa Su"]
@@ -372,7 +376,7 @@ def build_v1():
     col = first_col
     for d in range(1, tot_days + 1):
         if d == t[2]:
-            cur_line += "[{:d}]".format(d) if d >= 10 else "[{:d}]".format(d)
+            cur_line += "[{:d}]".format(d)
         else:
             cur_line += "{:2d} ".format(d)
         col += 1
@@ -647,7 +651,7 @@ lp.set_style_text_font(lv.font_montserrat_12, 0)
 lp.center()
 
 lbl_nav_mid = lv.label(nav)
-lbl_nav_mid.set_text("BOOT BTN / SITE TO SWITCH")
+lbl_nav_mid.set_text("TOUCH / BOOT TO SWITCH")
 lbl_nav_mid.set_style_text_font(lv.font_montserrat_10, 0)
 lbl_nav_mid.set_style_text_color(lv.color_hex(0x94A3B8), 0)
 lbl_nav_mid.align(lv.ALIGN.CENTER, 0, 0)
@@ -664,29 +668,81 @@ render_current()
 
 def print_diag_report():
     try:
-        touch_type = "Resistive XPT2046 (SPI CS=33)"
-        if 21 in i2c_found:
-            touch_type = "Capacitive CST816S (I2C 0x15)"
-        elif 93 in i2c_found or 20 in i2c_found:
-            touch_type = "Capacitive GT911 (I2C)"
         rep = {
             "status": "SCREEN_ACTIVE",
+            "board": "ESP32-2432S024R (2.4 inch L1435-2.4)",
             "release": os.uname().release,
-            "machine": os.uname().machine,
             "mem_free_kb": gc.mem_free() // 1024,
             "variant": variant,
             "bl_pin": bl_pin,
-            "driver_mode": driver_mode,
             "rot": hex(rot_hex),
-            "i2c_devices": i2c_found,
-            "touch_type": touch_type,
-            "widget": START_WIDGET
+            "inv": hex(inv_cmd),
+            "touch_type": "Resistive XPT2046 (SPI1 CS=33, IRQ=36)",
+            "widget": MODES[current_idx % len(MODES)]
         }
         print("CYD_SCAN_REPORT:" + json.dumps(rep))
     except Exception as e:
         print("CYD_SCAN_ERROR:", e)
 
 print_diag_report()
+
+# Безопасный опрос тачскрина XPT2046 (CS=33 на SPI1) и кнопки BOOT (GPIO 0) каждые 120 мс
+tx_touch = bytearray([0, 0, 0])
+rx_touch = bytearray(3)
+last_touch_ms = 0
+last_boot_btn = 1
+
+def read_xpt_reg(cmd):
+    if touch_dev is None:
+        return 0
+    tx_touch[0] = cmd
+    tx_touch[1] = 0
+    tx_touch[2] = 0
+    touch_dev.write_readinto(tx_touch, rx_touch)
+    return ((rx_touch[1] << 8) | rx_touch[2]) >> 3
+
+def poll_touch_and_buttons(t):
+    global current_idx, last_touch_ms, last_boot_btn
+    now_ms = time.ticks_ms()
+
+    # 1. Физическая кнопка BOOT (GPIO 0) на плате
+    try:
+        b_val = btn_boot.value()
+        if b_val == 0 and last_boot_btn == 1:
+            current_idx = (current_idx + 1) % len(BUILDERS)
+            render_current()
+            last_touch_ms = now_ms
+        last_boot_btn = b_val
+    except Exception:
+        pass
+
+    # 2. Резистивный тачскрин XPT2046 (CS=33 на SPI1)
+    if touch_dev is not None and time.ticks_diff(now_ms, last_touch_ms) > 380:
+        try:
+            z1 = read_xpt_reg(0xB0)
+            if 180 < z1 < 3950:
+                raw_x = read_xpt_reg(0xD0)
+                raw_y = read_xpt_reg(0x90)
+                last_touch_ms = now_ms
+                # Коротко мигаем зелёным светодиодом при касании
+                led_g.value(0)
+                # Если открыт Помодоро (8/9) и нажали в центр экрана — старт/пауза таймера
+                if current_idx == 7 and 1100 < raw_x < 2900 and 1100 < raw_y < 2900:
+                    state["pomo_run"] = not state["pomo_run"]
+                    render_current()
+                else:
+                    # Левая половина (< PREV) или правая половина (NEXT >)
+                    if raw_x < 1900:
+                        current_idx = (current_idx - 1) % len(BUILDERS)
+                    else:
+                        current_idx = (current_idx + 1) % len(BUILDERS)
+                    render_current()
+                led_g.value(1)
+        except Exception:
+            pass
+
+timer_touch = lv.timer_create(poll_touch_and_buttons, 120, None)
+timer_touch.set_repeat_count(-1)
 
 def connect_wifi_and_fetch():
     if not WIFI_SSID:
@@ -733,21 +789,9 @@ def connect_wifi_and_fetch():
 poll_in = select.poll()
 poll_in.register(sys.stdin, select.POLLIN)
 s_buf = ""
-last_boot_btn = 1
 
 def tick_cb(t):
-    global current_idx, s_buf, last_boot_btn
-    # Проверка нажатия физической кнопки BOOT (GPIO 0) на плате для переключения виджетов
-    try:
-        b_val = btn_boot.value()
-        if b_val == 0 and last_boot_btn == 1:
-            current_idx = (current_idx + 1) % len(BUILDERS)
-            render_current()
-        last_boot_btn = b_val
-    except Exception:
-        pass
-
-    # Подключаем Wi-Fi только через 2 секунды после того, как первый кадр экрана полностью отрисовался!
+    global current_idx, s_buf
     state["ticks"] += 1
     if state["ticks"] == 2 and WIFI_SSID and not state["wifi_tried"]:
         state["wifi_tried"] = True
@@ -789,10 +833,16 @@ def main():
     fs = LittleFS(block_size=4096, block_count=189, disk_version=0x00020000)
     with fs.open("/boot.py", "w") as f:
         f.write(BOOT_PY)
+    with fs.open("/config.txt", "wb") as f:
+        f.write(DEFAULT_CFG_BYTES)
     with fs.open("/main.py", "w") as f:
         f.write(MAIN_PY)
 
     full_buf = bytes(fs.context.buffer)
+    cfg_idx = full_buf.find(b"CYDCFG1:")
+    print(f"📍 Метка CYDCFG1: внутри vfs_widgets.bin по смещению {cfg_idx} (блок {cfg_idx // 4096}, смещение в блоке {cfg_idx % 4096})")
+    assert cfg_idx != -1 and (cfg_idx % 4096) + 2048 <= 4096
+
     last_used_block = 0
     for b in range(189):
         chunk = full_buf[b * 4096 : (b + 1) * 4096]

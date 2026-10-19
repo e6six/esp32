@@ -40,8 +40,8 @@ const CITIES_DB = {
 };
 
 const DEFAULT_CONFIG = {
-  boardId: 'cyd_28',
-  cydVariant: 'variant4_bl27', // По умолчанию Профиль 4 (подсветка GPIO 27 без конфликта SPI CS=33)
+  boardId: 'cyd_24',
+  cydVariant: 's024_perfect', // По умолчанию Профиль 4.1 для матрицы L1435-2.4 (rot=0x60, RGB, INVOFF 0x20, BL=27)
   wifiSsid: '',
   wifiPassword: '',
   city: 'Москва',
@@ -68,7 +68,12 @@ function loadConfig() {
   try {
     if (fs.existsSync(CONFIG_PATH)) {
       const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
-      return { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
+      const parsed = { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
+      const validVariants = ['s024_perfect', 's024_bgr_inv0', 's024_rgb_inv1', 's024_bgr_inv1'];
+      if (!validVariants.includes(parsed.cydVariant)) {
+        parsed.cydVariant = 's024_perfect';
+      }
+      return parsed;
     }
   } catch (e) {
     console.error('Ошибка чтения config.json:', e.message);

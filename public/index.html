@@ -99,36 +99,36 @@
         </div>
 
         <div class="card" style="padding:12px; background:var(--bg-input);">
-          <div style="font-size:11.5px; color:var(--text-muted);">Особенность вашей платы (GPIO 27)</div>
+          <div style="font-size:11.5px; color:var(--text-muted);">Точная модель по вашему фото</div>
           <div id="scanBoardQuirks" style="font-size:13px; font-weight:700; color:#34d399; margin-top:2px;">
-            Подсветка GPIO 27 • Экран и Тач (CS=33) на одной шине SPI1
+            ESP32-2432S024R (Экран 2.4" L1435-2.4 • Пин 27)
           </div>
           <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">
-            Помеха CS=33 устранена! Выберите режим 4.1–4.4 ниже 👇
+            Тачскрин XPT2046 (SPI1 CS=33) • Красный LED погашен
           </div>
         </div>
       </div>
 
-      <!-- Быстрый 2-секундный тестер 4 профилей экрана для платы с подсветкой GPIO 27 -->
+      <!-- Быстрый 2-секундный тестер 4 профилей экрана для платы ESP32-2432S024R (L1435-2.4) -->
       <div style="background:rgba(10,16,29,0.85); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
         <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#34d399;">
-          🎛️ Ваша плата зажглась на Профиле 4 (подсветка GPIO 27)! Почему были полосы и зависание:
+          🎛️ По вашим фото определена точная матрица: 2.4" L1435-2.4 (ESP32-2432S024R, USB-C)!
         </div>
         <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px; line-height:1.5;">
-          На платах с подсветкой <b>GPIO 27</b> (серии <code>2432S024 / W328 / S032</code>) чип тачскрина (<code>CS = GPIO 33</code>) подключён к <b>той же самой шине SPI1 (пины 14, 13, 12)</b>, что и сам экран (<code>CS = GPIO 15</code>). Из-за опроса <code>GPIO 33</code> во время передачи кадра тачскрин перебивал шину экрана и вызывал полосы! Теперь <code>GPIO 33</code> заблокирован в <code>HIGH</code> — нажмите одну из 4 кнопок ниже (прошивается за <b>3 секунды</b>):
+          На <b>Фото 1 (Профиль 4.3)</b> ориентация <code>0x60</code> и чёткость идеальны, а белый фон был из-за команды инверсии <code>0x21 (INVON)</code>. Теперь в <b>Профиле 4.1 (по умолчанию)</b> включён глубокий тёмный фон <code>0x20 (INVOFF)</code>, погашен слепящий красный светодиод слева внизу и включено переключение виджетов как с сайта, так и касанием экрана (левая/правая половина) и кнопкой <b>BOOT</b>!
         </div>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap:8px;">
-          <button class="btn btn-sm profile-test-btn" data-variant="variant4_bl27" style="border-color:#10b981; color:#34d399;">
-            ✅ Профиль 4.1: GPIO 27 • ILI9341 (0x60 BGR, Без полос!)
+          <button class="btn btn-sm profile-test-btn" data-variant="s024_perfect" style="border-color:#10b981; color:#34d399;">
+            ✅ Профиль 4.1: Тёмный фон + Цвета RGB (0x60, INVOFF)
           </button>
-          <button class="btn btn-sm profile-test-btn" data-variant="bl27_rot20">
-            💡 Профиль 4.2: GPIO 27 • ILI9341 (Развёртка 0x20 BGR)
+          <button class="btn btn-sm profile-test-btn" data-variant="s024_bgr_inv0">
+            💡 Профиль 4.2: Тёмный фон + Цвета BGR (0x60, INVOFF)
           </button>
-          <button class="btn btn-sm profile-test-btn" data-variant="bl27_st7789">
-            💡 Профиль 4.3: GPIO 27 • Драйвер ST7789 IPS (0x60 RGB)
+          <button class="btn btn-sm profile-test-btn" data-variant="s024_rgb_inv1">
+            💡 Профиль 4.3: Светлый фон (как на Фото 1, 0x60, INVON)
           </button>
-          <button class="btn btn-sm profile-test-btn" data-variant="bl27_type2_e0">
-            💡 Профиль 4.4: GPIO 27 • ILI9341 Type 2 (Развёртка 0xE0)
+          <button class="btn btn-sm profile-test-btn" data-variant="s024_bgr_inv1">
+            💡 Профиль 4.4: Светлый фон + BGR (0x60, INVON)
           </button>
         </div>
       </div>
@@ -158,14 +158,12 @@
         </div>
 
         <div class="form-group">
-          <label for="selectCydVariant">🟨 Профиль матрицы экрана вашей платы (GPIO 27):</label>
+          <label for="selectCydVariant">🟨 Профиль матрицы экрана вашей платы (L1435-2.4):</label>
           <select id="selectCydVariant" class="select">
-            <option value="variant4_bl27" selected>Профиль 4.1: GPIO 27 • ILI9341 (0x60 BGR, Без помех SPI)</option>
-            <option value="bl27_rot20">Профиль 4.2: GPIO 27 • ILI9341 (Развёртка 0x20 BGR)</option>
-            <option value="bl27_st7789">Профиль 4.3: GPIO 27 • Драйвер ST7789 IPS (0x60 RGB)</option>
-            <option value="bl27_type2_e0">Профиль 4.4: GPIO 27 • ILI9341 Type 2 (Развёртка 0xE0 RGB)</option>
-            <option value="standard">Стандарт GPIO 21 (ILI9341 Type 1)</option>
-            <option value="variant2">Ревизия GPIO 21 (Type 2 RGB)</option>
+            <option value="s024_perfect" selected>Профиль 4.1: Тёмный фон + RGB (0x60, INVOFF — По умолчанию)</option>
+            <option value="s024_bgr_inv0">Профиль 4.2: Тёмный фон + BGR (0x60, INVOFF)</option>
+            <option value="s024_rgb_inv1">Профиль 4.3: Светлый фон (как на Фото 1, 0x60, INVON)</option>
+            <option value="s024_bgr_inv1">Профиль 4.4: Светлый фон + BGR (0x60, INVON)</option>
           </select>
         </div>
       </div>

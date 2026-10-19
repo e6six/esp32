@@ -171,13 +171,18 @@ async function loadInitialStatus() {
       state.cities = data.cities || {};
       state.config = { ...state.config, ...data.config };
 
+      const validVariants = ['s024_perfect', 's024_bgr_inv0', 's024_rgb_inv1', 's024_bgr_inv1'];
+      if (!validVariants.includes(state.config.cydVariant)) {
+        state.config.cydVariant = 's024_perfect';
+      }
+
       const idx = NINE_MODES.indexOf(state.config.selectedWidget);
       state.previewIdx = idx >= 0 ? idx : 0;
 
       populateCitiesSelect();
       document.getElementById('inputWifiSsid').value = state.config.wifiSsid || '';
       document.getElementById('inputWifiPass').value = state.config.wifiPassword || '';
-      document.getElementById('selectCydVariant').value = state.config.cydVariant || 'variant4_bl27';
+      document.getElementById('selectCydVariant').value = state.config.cydVariant;
     }
   } catch (err) {
     console.error('Ошибка загрузки статуса:', err);
@@ -202,7 +207,7 @@ function readTopConfigFromDom() {
   state.config.wifiSsid = document.getElementById('inputWifiSsid').value.trim();
   state.config.wifiPassword = document.getElementById('inputWifiPass').value;
   state.config.city = document.getElementById('selectCity').value || 'Москва';
-  state.config.cydVariant = document.getElementById('selectCydVariant').value || 'variant4_bl27';
+  state.config.cydVariant = document.getElementById('selectCydVariant').value || 's024_perfect';
 
   const notesEl = document.getElementById('cardNotesInput');
   if (notesEl) {
@@ -229,7 +234,7 @@ async function saveConfigToServer(widgetId) {
   });
   const data = await res.json();
   if (data.ok) {
-    state.config = data.config;
+    state.config = { ...data.config, selectedWidget: widgetId || data.config.selectedWidget };
   }
   return data;
 }
@@ -779,11 +784,11 @@ function setProgress(pct, stepText) {
   if (desc && stepText) desc.textContent = stepText;
 }
 
-// Создаёт 4096-байтный блок конфигурации для записи в 0x3E3000 (блок 160 раздела vfs)
-function buildConfigFlashSector(cfg) {
+// Формирует JSON-байты CYDCFG1:{...}\0 для записи как в /config.txt внутри vfs_widgets.bin, так и в сектор 0x3E3000
+function buildUserConfigBytes(cfg) {
   const cityInfo = state.cities[cfg.city] || { en: toAsciiSafe(cfg.city || 'Moscow'), lat: 55.7558, lon: 37.6173, tz: 3 };
   const payloadObj = {
-    cydVariant: cfg.cydVariant || 'variant4_bl27',
+    cydVariant: cfg.cydVariant || 's024_perfect',
     wifiSsid: cfg.wifiSsid || '',
     wifiPassword: cfg.wifiPassword || '',
     cityEn: cityInfo.en || 'Moscow',
@@ -797,8 +802,40 @@ function buildConfigFlashSector(cfg) {
     tempC: 14,
     windMs: 3.5
   };
+  return new TextEncoder().encode('CYDCFG1:' + JSON.stringify(payloadObj) + '\0');
+}
 
-  const jsonBytes = new TextEncoder().encode('CYDCFG1:' + JSON.stringify(payloadObj) + '\0');
+// Патчит файл /config.txt прямо внутри образа LittleFS v2 (vfsUint8) в памяти браузера
+function patchVfsImageWithConfig(vfsUint8, cfg) {
+  const sig = [67, 89, 68, 67, 70, 71, 49, 58]; // "CYDCFG1:"
+  let foundOffset = -1;
+  for (let i = 0; i <= vfsUint8.length - 2048; i++) {
+    if (
+      vfsUint8[i] === sig[0] &&
+      vfsUint8[i + 1] === sig[1] &&
+      vfsUint8[i + 2] === sig[2] &&
+      vfsUint8[i + 3] === sig[3] &&
+      vfsUint8[i + 4] === sig[4] &&
+      vfsUint8[i + 5] === sig[5] &&
+      vfsUint8[i + 6] === sig[6] &&
+      vfsUint8[i + 7] === sig[7]
+    ) {
+      foundOffset = i;
+      break;
+    }
+  }
+  if (foundOffset >= 0) {
+    const jsonBytes = buildUserConfigBytes(cfg);
+    const padded = new Uint8Array(2048).fill(32); // пробелы
+    padded.set(jsonBytes.slice(0, 2047), 0);
+    vfsUint8.set(padded, foundOffset);
+  }
+  return foundOffset;
+}
+
+// Создаёт 4096-байтный блок конфигурации для записи в 0x3E3000 (блок 160 раздела vfs)
+function buildConfigFlashSector(cfg) {
+  const jsonBytes = buildUserConfigBytes(cfg);
   const sector = new Uint8Array(4096).fill(0xff);
   sector.set(jsonBytes.slice(0, 4095), 0);
   return sector;
@@ -810,13 +847,18 @@ async function runOneClickInstall(widgetId, forceFullEngineFlash = false) {
   logBox.textContent = '';
   modal.classList.add('open');
 
-  setProgress(5, 'Сохраняем настройки и готовим пакет для вашей ESP32-2432S028...');
+  if (widgetId) {
+    state.config.selectedWidget = widgetId;
+  }
+  setProgress(5, 'Сохраняем настройки и готовим пакет для вашей ESP32-2432S024R...');
   await saveConfigToServer(widgetId);
   renderWidgetsGallery();
 
-  const wInfo = WIDGET_CATALOG.find(w => w.id === widgetId) || WIDGET_CATALOG[0];
-  logInstall(`🚀 Выбран виджет: "${wInfo.title}"`);
-  logInstall(`🟨 Профиль матрицы экрана: ${state.config.cydVariant}`);
+  const activeWidgetId = widgetId || state.config.selectedWidget || 'v1_classic_cal';
+  state.config.selectedWidget = activeWidgetId;
+  const wInfo = WIDGET_CATALOG.find(w => w.id === activeWidgetId) || WIDGET_CATALOG[0];
+  logInstall(`🚀 Выбран виджет: "${wInfo.title}" (${activeWidgetId})`);
+  logInstall(`🟨 Профиль матрицы L1435-2.4: ${state.config.cydVariant}`);
   logInstall(`📶 Wi-Fi: ${state.config.wifiSsid ? state.config.wifiSsid : '(автономные часы и календарь без Wi-Fi)'}`);
   logInstall(`🌤️ Город погоды: ${state.config.city} (Lat ${state.config.latitude}, Lon ${state.config.longitude})`);
 
@@ -828,7 +870,7 @@ async function runOneClickInstall(widgetId, forceFullEngineFlash = false) {
   }
 
   try {
-    setProgress(10, 'Выберите USB COM-порт вашей платы ESP32-2432S028...');
+    setProgress(10, 'Выберите USB COM-порт вашей платы ESP32...');
     let port = state.serialPort;
     if (!port) {
       port = await navigator.serial.requestPort();
@@ -850,10 +892,12 @@ async function runOneClickInstall(widgetId, forceFullEngineFlash = false) {
       document.getElementById('scanUsbMac').textContent = `${bridgeName} (${vid}:${pid})`;
     }
 
-    setProgress(18, 'Скачиваем образ файловой системы виджетов (84 КБ)...');
-    const vfsResp = await fetch('/firmware/vfs_widgets.bin');
+    setProgress(18, 'Скачиваем образ файловой системы виджетов (96 КБ)...');
+    const vfsResp = await fetch('/firmware/vfs_widgets.bin?t=' + Date.now());
     if (!vfsResp.ok) throw new Error('Не удалось загрузить /firmware/vfs_widgets.bin');
     const vfsUint8 = new Uint8Array(await vfsResp.arrayBuffer());
+    const patchedOffset = patchVfsImageWithConfig(vfsUint8, state.config);
+    logInstall(`📦 Конфигурация виджета "${activeWidgetId}" вшита прямо в /config.txt образа (смещение ${patchedOffset})`);
     const cfgSectorUint8 = buildConfigFlashSector(state.config);
 
     const filesToFlash = [];
