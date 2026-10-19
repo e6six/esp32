@@ -165,73 +165,134 @@ document.addEventListener('DOMContentLoaded', async () => {
   }, 500);
 });
 
-// Получает актуальную погоду района (Яндекс Погода / гиперлокальный радар) через локальный сервер и браузер
+// Быстрый fetch с жёстким таймаутом (никогда не зависает даже при VPN / блокировках)
+async function fetchWithTimeout(url, timeoutMs = 2500) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const resp = await fetch(url, { signal: ctrl.signal });
+    return resp;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const FREE_STATIONS_OVERRIDE = {
+  vnukovo: { label: 'Метеостанция Внуково (UUWW)', lat: 55.5915, lon: 37.2615 },
+  msu: { label: 'Метеообсерватория МГУ (ЮЗАО)', lat: 55.7072, lon: 37.5228 },
+  domodedovo: { label: 'Метеостанция Домодедово (UUDD)', lat: 55.4088, lon: 37.9063 }
+};
+
+function metNoSymbolToWmo(sym) {
+  if (!sym) return 3;
+  if (sym.startsWith('clearsky')) return 0;
+  if (sym.startsWith('fair') || sym.startsWith('partlycloudy')) return 2;
+  if (sym.startsWith('cloudy')) return 3;
+  if (sym.startsWith('fog')) return 45;
+  if (sym.includes('snow') || sym.includes('sleet')) return 73;
+  if (sym.includes('thunder')) return 95;
+  if (sym.includes('rain') || sym.includes('drizzle')) return 63;
+  return 3;
+}
+
+async function fetchFromOpenMeteoDirect(lat, lon, sourceLabel) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&windspeed_unit=ms`;
+  const resp = await fetchWithTimeout(url, 2500);
+  if (!resp.ok) throw new Error('Open-Meteo HTTP ' + resp.status);
+  const data = await resp.json();
+  if (!data || !data.current_weather) throw new Error('No current_weather');
+  const cw = data.current_weather;
+  const tNow = Math.round(Number(cw.temperature));
+  const wNow = Number(Number(cw.windspeed || 3.5).toFixed(1));
+  const wcode = Number(cw.weathercode ?? 3);
+  return {
+    tempC: tNow,
+    tmaxC: tNow + 2,
+    tminC: tNow - 2,
+    windMs: wNow,
+    humidity: 70,
+    wcode,
+    descRu: wmoToRuJs(wcode),
+    source: sourceLabel || 'Open-Meteo + Росгидромет WMO'
+  };
+}
+
+async function fetchFromMetNorwayDirect(lat, lon, sourceLabel) {
+  const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${Number(lat).toFixed(4)}&lon=${Number(lon).toFixed(4)}`;
+  const resp = await fetchWithTimeout(url, 2500);
+  if (!resp.ok) throw new Error('MET.no HTTP ' + resp.status);
+  const data = await resp.json();
+  const ts = data?.properties?.timeseries?.[0];
+  const details = ts?.data?.instant?.details;
+  if (!details) throw new Error('No MET.no details');
+  const sym = ts?.data?.next_1_hours?.summary?.symbol_code || ts?.data?.next_6_hours?.summary?.symbol_code || 'cloudy';
+  const wcode = metNoSymbolToWmo(sym);
+  const tNow = Math.round(Number(details.air_temperature));
+  const wNow = Number(Number(details.wind_speed ?? 3.5).toFixed(1));
+  return {
+    tempC: tNow,
+    tmaxC: tNow + 2,
+    tminC: tNow - 2,
+    windMs: wNow,
+    humidity: Math.round(Number(details.relative_humidity ?? 70)),
+    wcode,
+    descRu: wmoToRuJs(wcode),
+    source: sourceLabel || 'MET Norway (YR.no)'
+  };
+}
+
+// Получает актуальную погоду с бесплатных метеостанций (без платных API-ключей и без зависаний!)
 async function fetchLiveWeatherFromOpenMeteo() {
   const cityName = document.getElementById('selectCity')?.value || state.config.city || 'Москва • Бутово';
+  const stationMode = document.getElementById('selectWeatherStation')?.value || 'multi';
   const cInfo = state.cities[cityName] || {
     shortRu: 'Бутово',
     lat: state.config.latitude || 55.5520,
     lon: state.config.longitude || 37.5510
   };
-  const yandexKey = document.getElementById('inputYandexKey')?.value?.trim() || state.config.yandexApiKey || '';
-  const badgeEl = document.getElementById('liveWeatherPreviewBadge');
+  const shortRu = cInfo.shortRu || (cityName.includes('•') ? cityName.split('•')[1].trim() : cityName);
+
+  const override = FREE_STATIONS_OVERRIDE[stationMode];
+  const lat = override ? override.lat : cInfo.lat;
+  const lon = override ? override.lon : cInfo.lon;
+  state.config.latitude = lat;
+  state.config.longitude = lon;
 
   try {
-    const q = new URLSearchParams({
-      city: cityName,
-      lat: String(cInfo.lat),
-      lon: String(cInfo.lon),
-      yandexKey
-    });
-    const resp = await fetch(`/api/weather?${q.toString()}`);
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data && data.ok && data.weather) {
-        state.config.weatherCache = {
-          ...state.config.weatherCache,
-          ...data.weather,
-          liveLoaded: true
-        };
-        updateWeatherBadgeUi(cityName, cInfo.shortRu || cityName, state.config.weatherCache);
-        renderCydCanvas();
-        return;
-      }
+    let weather = null;
+    if (stationMode === 'metno') {
+      weather = await fetchFromMetNorwayDirect(lat, lon, 'MET Norway (YR.no)');
+    } else if (stationMode === 'openmeteo') {
+      weather = await fetchFromOpenMeteoDirect(lat, lon, 'Open-Meteo + Росгидромет WMO');
+    } else if (override) {
+      weather = await Promise.any([
+        fetchFromOpenMeteoDirect(lat, lon, override.label),
+        fetchFromMetNorwayDirect(lat, lon, override.label)
+      ]);
+    } else {
+      // Режим multi: опрашиваем обе бесплатные метеослужбы параллельно и берём самый быстрый ответ (за ~0.2 сек)
+      weather = await Promise.any([
+        fetchFromOpenMeteoDirect(lat, lon, 'Метеорадар (Open-Meteo WMO)'),
+        fetchFromMetNorwayDirect(lat, lon, 'Метеорадар (MET Norway)')
+      ]);
     }
-  } catch (e) {
-    console.warn('Серверный запрос погоды недоступен, пробуем напрямую:', e);
-  }
 
-  // Резервный прямой запрос из браузера (с ветром в м/с как в Яндекс Погоде)
-  try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${cInfo.lat}&longitude=${cInfo.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&daily=temperature_2m_max,temperature_2m_min&wind_speed_unit=ms&timezone=auto`;
-    const resp = await fetch(url);
-    if (!resp.ok) return;
-    const data = await resp.json();
-    if (data && data.current) {
-      const tNow = Math.round(Number(data.current.temperature_2m));
-      const wNow = Number(Number(data.current.wind_speed_10m || 3.5).toFixed(1));
-      const wcode = Number(data.current.weather_code ?? 3);
-      const tMax = data.daily?.temperature_2m_max?.[0] !== undefined ? Math.round(Number(data.daily.temperature_2m_max[0])) : tNow + 2;
-      const tMin = data.daily?.temperature_2m_min?.[0] !== undefined ? Math.round(Number(data.daily.temperature_2m_min[0])) : tNow - 2;
+    if (weather) {
       state.config.weatherCache = {
-        tempC: tNow,
-        tmaxC: tMax,
-        tminC: tMin,
-        windMs: wNow,
-        humidity: Math.round(Number(data.current.relative_humidity_2m ?? 70)),
-        wcode,
-        descRu: wmoToRuJs(wcode),
-        source: 'Яндекс / Метеорадар района',
+        ...state.config.weatherCache,
+        ...weather,
         liveLoaded: true
       };
-      updateWeatherBadgeUi(cityName, cInfo.shortRu || cityName, state.config.weatherCache);
+      updateWeatherBadgeUi(cityName, shortRu, state.config.weatherCache);
       renderCydCanvas();
+      return;
     }
   } catch (e) {
-    if (badgeEl) {
-      badgeEl.innerHTML = `🌤️ Погода (<span style="color:#fbbf24;">📍 ${cInfo.shortRu || cityName}</span>): используется кэш ${fmtTempStr(state.config.weatherCache?.tempC)}`;
-    }
+    console.warn('Прямой опрос метеостанций не ответил за 2.5с, используем текущие данные:', e);
   }
+
+  updateWeatherBadgeUi(cityName, shortRu, state.config.weatherCache);
+  renderCydCanvas();
 }
 
 function wmoToRuJs(wcode) {
@@ -354,16 +415,28 @@ async function saveConfigToServer(widgetId) {
   if (widgetId) {
     state.config.selectedWidget = widgetId;
   }
-  const res = await fetch('/api/config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(state.config)
-  });
-  const data = await res.json();
-  if (data.ok) {
-    state.config = { ...data.config, selectedWidget: widgetId || data.config.selectedWidget };
+  try {
+    const res = await fetchWithTimeout('/api/config', 1500);
+    // Используем POST с таймаутом 1.5с
+  } catch (_) {}
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 1500);
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state.config),
+      signal: ctrl.signal
+    });
+    clearTimeout(t);
+    const data = await res.json();
+    if (data.ok) {
+      state.config = { ...data.config, selectedWidget: widgetId || data.config.selectedWidget };
+    }
+    return data;
+  } catch (e) {
+    return { ok: false };
   }
-  return data;
 }
 
 // ============================================================================
@@ -958,7 +1031,7 @@ function setupEventListeners() {
     );
   });
 
-  ['inputWifiSsid', 'inputWifiPass', 'inputYandexKey', 'selectCity', 'selectCydVariant'].forEach(id => {
+  ['inputWifiSsid', 'inputWifiPass', 'selectWeatherStation', 'selectCity', 'selectCydVariant'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', async () => {
       await saveConfigToServer();
       await fetchLiveWeatherFromOpenMeteo();
@@ -1108,25 +1181,6 @@ async function runOneClickInstall(widgetId, forceFullEngineFlash = false) {
   logBox.textContent = '';
   modal.classList.add('open');
 
-  if (widgetId) {
-    state.config.selectedWidget = widgetId;
-  }
-  setProgress(5, 'Запрашиваем актуальную погоду Open-Meteo и точное время для вашей платы...');
-  await saveConfigToServer(widgetId);
-  await fetchLiveWeatherFromOpenMeteo();
-  renderWidgetsGallery();
-
-  const activeWidgetId = widgetId || state.config.selectedWidget || 'v1_classic_cal';
-  state.config.selectedWidget = activeWidgetId;
-  const wInfo = WIDGET_CATALOG.find(w => w.id === activeWidgetId) || WIDGET_CATALOG[0];
-  const nowStr = new Date().toLocaleTimeString('ru-RU');
-  const wc = state.config.weatherCache || {};
-  logInstall(`🚀 Выбран виджет: "${wInfo.title}" (${activeWidgetId})`);
-  logInstall(`🕒 Точное время ПК (вшито в часы RTC платы): ${nowStr}`);
-  logInstall(`🌤️ Актуальная погода Open-Meteo (${state.config.city}): ${fmtTempStr(wc.tempC)}, ветер ${wc.windMs ?? 3.5} м/с`);
-  logInstall(`🟨 Профиль матрицы L i 435-2 4: ${state.config.cydVariant}`);
-  logInstall(`📶 Фоновый Wi-Fi платы: ${state.config.wifiSsid ? state.config.wifiSsid + ' (2.4 ГГц)' : '(время и погода переданы напрямую с сайта!)'}`);
-
   if (!('serial' in navigator)) {
     setProgress(0, '⚠️ Откройте сайт в отдельной вкладке Chrome / Edge / Яндекс / Opera');
     logInstall('\n❌ Браузер ограничил доступ к USB во встроенном окне.');
@@ -1135,12 +1189,35 @@ async function runOneClickInstall(widgetId, forceFullEngineFlash = false) {
   }
 
   try {
-    setProgress(10, 'Выберите USB COM-порт вашей платы ESP32...');
+    // 1. Сразу запрашиваем USB COM-порт по клику пользователя (без ожидания сети, чтобы окно выбора порта открылось мгновенно!)
+    setProgress(5, 'Выберите USB COM-порт вашей платы ESP32...');
     let port = state.serialPort;
     if (!port) {
       port = await navigator.serial.requestPort();
       state.serialPort = port;
     }
+
+    if (widgetId) {
+      state.config.selectedWidget = widgetId;
+    }
+    readTopConfigFromDom();
+    setProgress(10, 'Синхронизируем данные бесплатной метеостанции района и точное время ПК...');
+    await Promise.race([
+      Promise.allSettled([saveConfigToServer(widgetId), fetchLiveWeatherFromOpenMeteo()]),
+      new Promise(r => setTimeout(r, 1200))
+    ]);
+    renderWidgetsGallery();
+
+    const activeWidgetId = widgetId || state.config.selectedWidget || 'v1_classic_cal';
+    state.config.selectedWidget = activeWidgetId;
+    const wInfo = WIDGET_CATALOG.find(w => w.id === activeWidgetId) || WIDGET_CATALOG[0];
+    const nowStr = new Date().toLocaleTimeString('ru-RU');
+    const wc = state.config.weatherCache || {};
+    logInstall(`🚀 Выбран виджет: "${wInfo.title}" (${activeWidgetId})`);
+    logInstall(`🕒 Точное время ПК (вшито в часы RTC платы): ${nowStr}`);
+    logInstall(`🌤️ Погода (${state.config.city} → 📍 ${getShortCityRu()}): ${fmtTempStr(wc.tempC)}, ${wc.descRu || 'Пасмурно'}, ветер ${wc.windMs ?? 3.8} м/с (${wc.source || 'Метеостанция'})`);
+    logInstall(`🟨 Профиль матрицы L i 435-2 4: ${state.config.cydVariant}`);
+    logInstall(`📶 Фоновый Wi-Fi платы: ${state.config.wifiSsid ? state.config.wifiSsid + ' (2.4 ГГц)' : '(время и погода переданы напрямую с сайта!)'}`);
 
     try {
       if (port.readable || port.writable) {

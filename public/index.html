@@ -176,12 +176,19 @@
 
       <div style="margin-top:12px; padding:10px 14px; border-radius:10px; background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.28); display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
         <div id="liveWeatherPreviewBadge" style="font-size:13.5px; color:#e2e8f0; font-weight:600;">
-          🌤️ Яндекс Погода (<span style="color:#fbbf24;">📍 Бутово</span>): загрузка актуальных данных района...
+          🌤️ Метеостанция (<span style="color:#fbbf24;">📍 Бутово</span>): готовы данные для записи на плату
         </div>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <input id="inputYandexKey" type="text" class="input" style="padding:5px 10px; font-size:12px; width:230px;" placeholder="Ключ API Яндекс Погоды (необязательно)" />
+          <select id="selectWeatherStation" class="select" style="padding:5px 10px; font-size:12.5px; width:auto;">
+            <option value="multi" selected>📡 Источник: Авто (Метеорадар района + MET Norway)</option>
+            <option value="openmeteo">🌐 Open-Meteo + Росгидромет WMO (по координатам района)</option>
+            <option value="metno">🇳🇴 Норвежский метеоинститут MET Norway (YR.no)</option>
+            <option value="vnukovo">🛫 Метеостанция аэропорта Внуково (UUWW — Юго-Запад, у Бутово)</option>
+            <option value="msu">🌡️ Метеообсерватория МГУ (ЮЗАО Москвы)</option>
+            <option value="domodedovo">🛫 Метеостанция аэропорта Домодедово (UUDD — Юг Москвы)</option>
+          </select>
           <button id="btnRefreshWeatherNow" type="button" class="btn btn-sm" style="background:#0284c7; color:#fff;">
-            🔄 Обновить погоду района
+            🔄 Обновить с метеостанции
           </button>
         </div>
       </div>

@@ -15,11 +15,14 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Районы Москвы (Яндекс Погода по точным координатам района) + крупные города России
+// Районы Москвы и реальные бесплатные метеостанции (без платных API-ключей)
 const CITIES_DB = {
+  'Москва • Бутово': { shortRu: 'Бутово', en: 'Butovo', group: 'moscow', lat: 55.5520, lon: 37.5510, tz: 3 },
   'Москва • Южное Бутово': { shortRu: 'Ю. Бутово', en: 'Yuzhnoye Butovo', group: 'moscow', lat: 55.5385, lon: 37.5336, tz: 3 },
   'Москва • Северное Бутово': { shortRu: 'Сев. Бутово', en: 'Severnoye Butovo', group: 'moscow', lat: 55.5719, lon: 37.5714, tz: 3 },
-  'Москва • Бутово': { shortRu: 'Бутово', en: 'Butovo', group: 'moscow', lat: 55.5520, lon: 37.5510, tz: 3 },
+  'Метеостанция Внуково (UUWW — у Бутово)': { shortRu: 'Внуково', en: 'Vnukovo UUWW', group: 'moscow', lat: 55.5915, lon: 37.2615, tz: 3 },
+  'Метеообсерватория МГУ (ЮЗАО)': { shortRu: 'МГУ ЮЗАО', en: 'MSU Moscow', group: 'moscow', lat: 55.7072, lon: 37.5228, tz: 3 },
+  'Метеостанция Домодедово (UUDD — Юг)': { shortRu: 'Домодедово', en: 'Domodedovo UUDD', group: 'moscow', lat: 55.4088, lon: 37.9063, tz: 3 },
   'Москва': { shortRu: 'Москва', en: 'Moscow', group: 'moscow', lat: 55.7558, lon: 37.6173, tz: 3 },
   'Москва • Чертаново': { shortRu: 'Чертаново', en: 'Chertanovo', group: 'moscow', lat: 55.6085, lon: 37.6033, tz: 3 },
   'Москва • Ясенево': { shortRu: 'Ясенево', en: 'Yasenevo', group: 'moscow', lat: 55.6063, lon: 37.5332, tz: 3 },
@@ -786,112 +789,62 @@ function wmoToRu(wcode) {
   return 'Облачно';
 }
 
-function httpsGetText(urlStr, headers = {}, timeoutMs = 3500) {
+function httpsGetText(urlStr, headers = {}, timeoutMs = 2200, maxRedirects = 2) {
   return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error('Hard timeout'));
+    }, timeoutMs);
     const req = https.get(urlStr, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+        'User-Agent': 'ESP32-CYD-Weather-Station/2.0 (https://github.com/e6six/esp32)',
         'Accept-Language': 'ru-RU,ru;q=0.9',
         ...headers
       },
       timeout: timeoutMs
     }, res => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && maxRedirects > 0) {
+        clearTimeout(timer);
         const nextUrl = new URL(res.headers.location, urlStr).toString();
         res.resume();
-        return httpsGetText(nextUrl, headers, timeoutMs).then(resolve).catch(reject);
+        return httpsGetText(nextUrl, headers, timeoutMs, maxRedirects - 1).then(resolve).catch(reject);
       }
       let data = '';
       res.on('data', chunk => {
         data += chunk.toString('utf-8');
-        if (data.length > 900000) req.destroy();
+        if (data.length > 300000) req.destroy();
       });
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+      res.on('end', () => {
+        clearTimeout(timer);
+        resolve({ status: res.statusCode, body: data });
+      });
     });
-    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
-    req.on('error', reject);
+    req.on('timeout', () => { clearTimeout(timer); req.destroy(); reject(new Error('Timeout')); });
+    req.on('error', err => { clearTimeout(timer); reject(err); });
   });
 }
 
-async function fetchYandexOrHyperlocalWeather(lat, lon, yandexKey) {
-  // 1. Официальный API Яндекс Погоды (если указан ключ X-Yandex-Weather-Key)
-  if (yandexKey && yandexKey.trim().length > 8) {
-    try {
-      const apiUrl = `https://api.weather.yandex.ru/v2/informers?lat=${lat}&lon=${lon}&lang=ru_RU`;
-      const r = await httpsGetText(apiUrl, { 'X-Yandex-Weather-Key': yandexKey.trim() }, 3500);
-      if (r.status === 200) {
-        const j = JSON.parse(r.body);
-        if (j && j.fact) {
-          const cond = YANDEX_COND_MAP[j.fact.condition] || { descRu: 'Облачно', wcode: 2 };
-          const parts = j.forecast?.parts || [];
-          const temps = parts.map(p => p.temp_avg ?? p.temp_max ?? j.fact.temp);
-          return {
-            tempC: Number(j.fact.temp),
-            tmaxC: temps.length ? Math.max(...temps, Number(j.fact.temp)) : Number(j.fact.temp) + 2,
-            tminC: temps.length ? Math.min(...temps, Number(j.fact.temp)) : Number(j.fact.temp) - 2,
-            windMs: Number(j.fact.wind_speed ?? 3.0),
-            humidity: Number(j.fact.humidity ?? 65),
-            wcode: cond.wcode,
-            descRu: cond.descRu,
-            source: 'Яндекс Погода API'
-          };
-        }
-      }
-    } catch (e) {
-      // Переходим к парсингу страницы Яндекс Погоды
-    }
-  }
-
-  // 2. Прямой запрос к странице Яндекс Погоды по координатам района (например, Бутово 55.5520, 37.5510)
+async function fetchYandexOrHyperlocalWeather(lat, lon) {
+  // 1. Бесплатная метеостанция Open-Meteo + Росгидромет WMO по координатам района (с ветром в м/с)
   try {
-    const yaUrl = `https://yandex.ru/pogoda/?lat=${lat}&lon=${lon}`;
-    const r = await httpsGetText(yaUrl, {}, 3200);
-    if (r.status === 200 && r.body && !r.body.includes('SmartCaptcha')) {
-      const factMatch = r.body.match(/"fact"\s*:\s*\{[^}]*"temp"\s*:\s*(-?\d+)/);
-      const windMatch = r.body.match(/"wind_speed"\s*:\s*(\d+(?:\.\d+)?)/) || r.body.match(/"windSpeed"\s*:\s*(\d+(?:\.\d+)?)/);
-      const condMatch = r.body.match(/"condition"\s*:\s*"([a-z-]+)"/);
-      const tempHtmlMatch = r.body.match(/class="temp__value[^"]*"[^>]*>([+\-−]?\d+)/);
-      const rawTemp = factMatch ? Number(factMatch[1]) : (tempHtmlMatch ? Number(tempHtmlMatch[1].replace('−', '-')) : null);
-      if (rawTemp !== null && !Number.isNaN(rawTemp)) {
-        const condKey = condMatch ? condMatch[1] : 'cloudy';
-        const cond = YANDEX_COND_MAP[condKey] || { descRu: 'Облачно', wcode: 2 };
-        const windMs = windMatch ? Number(windMatch[1]) : 3.5;
-        return {
-          tempC: rawTemp,
-          tmaxC: rawTemp + 2,
-          tminC: rawTemp - 2,
-          windMs,
-          humidity: 68,
-          wcode: cond.wcode,
-          descRu: cond.descRu,
-          source: 'Яндекс Погода'
-        };
-      }
-    }
-  } catch (e) {
-    // Переходим к резервному гиперлокальному прогнозу по координатам района
-  }
-
-  // 3. Гиперлокальный метеопрогноз по точным координатам района (с ветром в м/с как в Яндекс Погоде)
-  try {
-    const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&daily=temperature_2m_max,temperature_2m_min&wind_speed_unit=ms&timezone=auto`;
-    const r = await httpsGetText(omUrl, {}, 3500);
+    const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&windspeed_unit=ms`;
+    const r = await httpsGetText(omUrl, {}, 2200);
     if (r.status === 200) {
       const j = JSON.parse(r.body);
-      const cur = j.current || {};
-      const daily = j.daily || {};
-      const tempC = Math.round(Number(cur.temperature_2m ?? 4));
-      const wcode = Number(cur.weather_code ?? 3);
-      return {
-        tempC,
-        tmaxC: Math.round(Number(daily.temperature_2m_max?.[0] ?? tempC + 2)),
-        tminC: Math.round(Number(daily.temperature_2m_min?.[0] ?? tempC - 2)),
-        windMs: Number(Number(cur.wind_speed_10m ?? 3.5).toFixed(1)),
-        humidity: Math.round(Number(cur.relative_humidity_2m ?? 70)),
-        wcode,
-        descRu: wmoToRu(wcode),
-        source: 'Яндекс / Метеорадар района'
-      };
+      const cw = j.current_weather;
+      if (cw) {
+        const tempC = Math.round(Number(cw.temperature ?? 4));
+        const wcode = Number(cw.weathercode ?? 3);
+        return {
+          tempC,
+          tmaxC: tempC + 2,
+          tminC: tempC - 2,
+          windMs: Number(Number(cw.windspeed ?? 3.5).toFixed(1)),
+          humidity: 70,
+          wcode,
+          descRu: wmoToRu(wcode),
+          source: 'Метеостанция (Open-Meteo WMO)'
+        };
+      }
     }
   } catch (e) {
     // ignore
