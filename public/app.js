@@ -100,7 +100,7 @@ const NINE_MODES = [
 let state = {
   cities: {},
   config: {
-    cydVariant: 'standard',
+    cydVariant: 'variant4_bl27',
     wifiSsid: '',
     wifiPassword: '',
     city: 'Москва',
@@ -177,7 +177,7 @@ async function loadInitialStatus() {
       populateCitiesSelect();
       document.getElementById('inputWifiSsid').value = state.config.wifiSsid || '';
       document.getElementById('inputWifiPass').value = state.config.wifiPassword || '';
-      document.getElementById('selectCydVariant').value = state.config.cydVariant || 'standard';
+      document.getElementById('selectCydVariant').value = state.config.cydVariant || 'variant4_bl27';
     }
   } catch (err) {
     console.error('Ошибка загрузки статуса:', err);
@@ -202,7 +202,7 @@ function readTopConfigFromDom() {
   state.config.wifiSsid = document.getElementById('inputWifiSsid').value.trim();
   state.config.wifiPassword = document.getElementById('inputWifiPass').value;
   state.config.city = document.getElementById('selectCity').value || 'Москва';
-  state.config.cydVariant = document.getElementById('selectCydVariant').value || 'standard';
+  state.config.cydVariant = document.getElementById('selectCydVariant').value || 'variant4_bl27';
 
   const notesEl = document.getElementById('cardNotesInput');
   if (notesEl) {
@@ -783,7 +783,7 @@ function setProgress(pct, stepText) {
 function buildConfigFlashSector(cfg) {
   const cityInfo = state.cities[cfg.city] || { en: toAsciiSafe(cfg.city || 'Moscow'), lat: 55.7558, lon: 37.6173, tz: 3 };
   const payloadObj = {
-    cydVariant: cfg.cydVariant || 'standard',
+    cydVariant: cfg.cydVariant || 'variant4_bl27',
     wifiSsid: cfg.wifiSsid || '',
     wifiPassword: cfg.wifiPassword || '',
     cityEn: cityInfo.en || 'Moscow',
@@ -999,7 +999,7 @@ async function capturePostResetBootLog(port) {
         try {
           const rep = JSON.parse(match[1]);
           document.getElementById('scanBoardQuirks').textContent =
-            `Экран активен! Свободно ОЗУ: ${rep.mem_free_kb} КБ (Пин подсветки: GPIO ${rep.bl_pin}, Тип: ${rep.init_type})`;
+            `Экран OK (${rep.driver_mode}, rot=${rep.rot}) • Тач: ${rep.touch_type} • ОЗУ: ${rep.mem_free_kb} КБ`;
         } catch (_) {}
       }
     }

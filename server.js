@@ -41,7 +41,7 @@ const CITIES_DB = {
 
 const DEFAULT_CONFIG = {
   boardId: 'cyd_28',
-  cydVariant: 'standard', // 'standard' (1 USB) или 'variant2' (2 USB / инверсия)
+  cydVariant: 'variant4_bl27', // По умолчанию Профиль 4 (подсветка GPIO 27 без конфликта SPI CS=33)
   wifiSsid: '',
   wifiPassword: '',
   city: 'Москва',

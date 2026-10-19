@@ -99,33 +99,36 @@
         </div>
 
         <div class="card" style="padding:12px; background:var(--bg-input);">
-          <div style="font-size:11.5px; color:var(--text-muted);">Особенность вашей ревизии V3</div>
+          <div style="font-size:11.5px; color:var(--text-muted);">Особенность вашей платы (GPIO 27)</div>
           <div id="scanBoardQuirks" style="font-size:13px; font-weight:700; color:#34d399; margin-top:2px;">
-            Чип D0WD-V3 часто идёт с экраном Type 2 (ST7789/ILI9341v2)
+            Подсветка GPIO 27 • Экран и Тач (CS=33) на одной шине SPI1
           </div>
           <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">
-            Проверьте 4 кнопки профиля экрана ниже 👇
+            Помеха CS=33 устранена! Выберите режим 4.1–4.4 ниже 👇
           </div>
         </div>
       </div>
 
-      <!-- Быстрый 2-секундный тестер 4 профилей экрана для ESP32-D0WD-V3 -->
+      <!-- Быстрый 2-секундный тестер 4 профилей экрана для платы с подсветкой GPIO 27 -->
       <div style="background:rgba(10,16,29,0.85); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
-        <div style="font-size:13px; font-weight:700; margin-bottom:8px; color:#f8fafc;">
-          🎛️ Быстрый перебор типа матрицы вашей платы (каждая кнопка прошивает конфиг всего за 2 секунды!):
+        <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#34d399;">
+          🎛️ Ваша плата зажглась на Профиле 4 (подсветка GPIO 27)! Почему были полосы и зависание:
+        </div>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px; line-height:1.5;">
+          На платах с подсветкой <b>GPIO 27</b> (серии <code>2432S024 / W328 / S032</code>) чип тачскрина (<code>CS = GPIO 33</code>) подключён к <b>той же самой шине SPI1 (пины 14, 13, 12)</b>, что и сам экран (<code>CS = GPIO 15</code>). Из-за опроса <code>GPIO 33</code> во время передачи кадра тачскрин перебивал шину экрана и вызывал полосы! Теперь <code>GPIO 33</code> заблокирован в <code>HIGH</code> — нажмите одну из 4 кнопок ниже (прошивается за <b>3 секунды</b>):
         </div>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap:8px;">
-          <button class="btn btn-sm profile-test-btn" data-variant="standard">
-            💡 Профиль 1: Стандарт ILI9341 (Type 1, Пин 21)
+          <button class="btn btn-sm profile-test-btn" data-variant="variant4_bl27" style="border-color:#10b981; color:#34d399;">
+            ✅ Профиль 4.1: GPIO 27 • ILI9341 (0x60 BGR, Без полос!)
           </button>
-          <button class="btn btn-sm profile-test-btn" data-variant="variant2">
-            💡 Профиль 2: Ревизия V3 / 2-USB (Type 2 RGB, Пин 21)
+          <button class="btn btn-sm profile-test-btn" data-variant="bl27_rot20">
+            💡 Профиль 4.2: GPIO 27 • ILI9341 (Развёртка 0x20 BGR)
           </button>
-          <button class="btn btn-sm profile-test-btn" data-variant="variant3_type2_bgr">
-            💡 Профиль 3: Ревизия V3 (Type 2 BGR, Пин 21)
+          <button class="btn btn-sm profile-test-btn" data-variant="bl27_st7789">
+            💡 Профиль 4.3: GPIO 27 • Драйвер ST7789 IPS (0x60 RGB)
           </button>
-          <button class="btn btn-sm profile-test-btn" data-variant="variant4_bl27">
-            💡 Профиль 4: Подсветка на GPIO 27 (S024 / S035)
+          <button class="btn btn-sm profile-test-btn" data-variant="bl27_type2_e0">
+            💡 Профиль 4.4: GPIO 27 • ILI9341 Type 2 (Развёртка 0xE0)
           </button>
         </div>
       </div>
@@ -155,12 +158,14 @@
         </div>
 
         <div class="form-group">
-          <label for="selectCydVariant">🟨 Профиль матрицы экрана вашей платы:</label>
+          <label for="selectCydVariant">🟨 Профиль матрицы экрана вашей платы (GPIO 27):</label>
           <select id="selectCydVariant" class="select">
-            <option value="standard">Профиль 1: Стандарт ILI9341 (Type 1, BGR, Пин 21)</option>
-            <option value="variant2">Профиль 2: Ревизия V3 / 2-USB (Type 2, RGB, Пин 21)</option>
-            <option value="variant3_type2_bgr">Профиль 3: Ревизия V3 (Type 2, BGR, Пин 21)</option>
-            <option value="variant4_bl27">Профиль 4: Подсветка GPIO 27 (CYD 2.4" / 3.5")</option>
+            <option value="variant4_bl27" selected>Профиль 4.1: GPIO 27 • ILI9341 (0x60 BGR, Без помех SPI)</option>
+            <option value="bl27_rot20">Профиль 4.2: GPIO 27 • ILI9341 (Развёртка 0x20 BGR)</option>
+            <option value="bl27_st7789">Профиль 4.3: GPIO 27 • Драйвер ST7789 IPS (0x60 RGB)</option>
+            <option value="bl27_type2_e0">Профиль 4.4: GPIO 27 • ILI9341 Type 2 (Развёртка 0xE0 RGB)</option>
+            <option value="standard">Стандарт GPIO 21 (ILI9341 Type 1)</option>
+            <option value="variant2">Ревизия GPIO 21 (Type 2 RGB)</option>
           </select>
         </div>
       </div>
