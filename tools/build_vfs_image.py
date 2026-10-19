@@ -15,9 +15,8 @@ BOOT_PY = """# boot.py — ESP32-2432S024R (L i 435-2 4)
 import gc
 import machine
 
-# 1. Намертво фиксируем CS тачскрина (GPIO 33) и SD-карты (GPIO 5) в HIGH (1), чтобы шина SPI1 никогда не мерцала
+# 1. Изолируем CS SD-карты (GPIO 5) в HIGH (1). Пин 33 оставляем аппаратному драйверу SPI тачскрина XPT2046!
 try:
-    machine.Pin(33, machine.Pin.OUT, value=1)
     machine.Pin(5, machine.Pin.OUT, value=1)
 except Exception:
     pass
@@ -55,8 +54,7 @@ import lcd_bus
 import ili9341
 import task_handler
 
-# Держим CS=33 и CS=5 в HIGH (1) постоянно — никаких помех на SPI1!
-pin_touch_cs = machine.Pin(33, machine.Pin.OUT, value=1)
+# Держим CS=5 (SD-карта) в HIGH (1). Пин CS=33 передаём аппаратному SPI-устройству тачскрина XPT2046!
 pin_sd_cs = machine.Pin(5, machine.Pin.OUT, value=1)
 led_r = machine.Pin(4, machine.Pin.OUT, value=1)
 led_g = machine.Pin(16, machine.Pin.OUT, value=1)
@@ -208,7 +206,19 @@ try:
 except Exception:
     pass
 
-# Физическая кнопка BOOT (GPIO 0) с аппаратной подтяжкой к 3.3V — для ручного переключения виджетов без помех
+# Инициализируем резистивный тачскрин U3 XPT2046 по заводской схеме ESP32-2432S024:
+# TP_CLK=IO14, TP_DIN=IO13, TP_OUT=IO12 (общая шина spi_bus), TP_CS=IO33, TP_IRQ=IO36 (с подтяжкой R3=10k к 3.3V)
+touch_dev = None
+tx_touch = bytearray([0x90, 0x00, 0x00])
+rx_touch = bytearray(3)
+try:
+    touch_dev = machine.SPI.Device(spi_bus=spi_bus, freq=2000000, cs=33)
+    # Отправляем 0x90 (PD1=0, PD0=0), чтобы активировать выход /PENIRQ (IO36) в XPT2046
+    touch_dev.write_readinto(tx_touch, rx_touch)
+except Exception as e:
+    print("TOUCH_INIT_ERR:", e)
+
+pin_touch_irq = machine.Pin(36, machine.Pin.IN)
 btn_boot = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
 
 th = task_handler.TaskHandler()
@@ -661,7 +671,7 @@ lp.set_style_text_font(lv.font_montserrat_12, 0)
 lp.center()
 
 lbl_nav_mid = lv.label(nav)
-lbl_nav_mid.set_text("BOOT BTN OR WEB TO SWITCH")
+lbl_nav_mid.set_text("TOUCH < PREV | NEXT >")
 lbl_nav_mid.set_style_text_font(lv.font_montserrat_10, 0)
 lbl_nav_mid.set_style_text_color(lv.color_hex(0x94A3B8), 0)
 lbl_nav_mid.align(lv.ALIGN.CENTER, 0, 0)
@@ -696,11 +706,26 @@ def print_diag_report():
 
 print_diag_report()
 
-# Опрос ТОЛЬКО аппаратной кнопки BOOT (GPIO 0) с антидребезгом (требует 2 подряд отсчёта LOW)
-boot_hold_cnt = 0
+# Чтение регистра XPT2046 по аппаратному SPI (CS=33 управляется драйвером ESP-IDF)
+def read_xpt(cmd):
+    if touch_dev is None:
+        return 0
+    tx_touch[0] = cmd
+    tx_touch[1] = 0
+    tx_touch[2] = 0
+    touch_dev.write_readinto(tx_touch, rx_touch)
+    return (((rx_touch[1] << 8) | rx_touch[2]) >> 3) & 0xFFF
 
-def poll_boot_button(t):
-    global current_idx, boot_hold_cnt
+# Опрос тачскрина XPT2046 (ТОЛЬКО когда палец нажал на экран и IO36 == 0!) и кнопки BOOT (GPIO 0)
+boot_hold_cnt = 0
+touch_released = True
+last_switch_ms = 0
+
+def poll_touch_and_boot(t):
+    global current_idx, boot_hold_cnt, touch_released, last_switch_ms
+    now_ms = time.ticks_ms()
+
+    # 1. Физическая кнопка BOOT (GPIO 0)
     try:
         if btn_boot.value() == 0:
             boot_hold_cnt += 1
@@ -714,7 +739,59 @@ def poll_boot_button(t):
     except Exception:
         pass
 
-timer_btn = lv.timer_create(poll_boot_button, 80, None)
+    # 2. Резистивный тачскрин U3 XPT2046 (по схеме ESP32-2432S024: IO36 = /PENIRQ с подтяжкой R3=10k к 3.3V)
+    # В покое IO36 == 1 -> шина SPI1 НЕ опрашивается вообще (0 мерцаний экрана!)
+    if touch_dev is None:
+        return
+    try:
+        if pin_touch_irq.value() != 0:
+            touch_released = True
+            return
+
+        # Если палец ещё не отпущен после прошлого переключения или прошло < 320 мс — ждём отпускания
+        if not touch_released or time.ticks_diff(now_ms, last_switch_ms) < 320:
+            return
+
+        # Холостое чтение 0xB1 для заряда фильтрующих конденсаторов C18..C21 (1 нФ по схеме) + проверка устойчивости
+        read_xpt(0xB1)
+        time.sleep_ms(4)
+        if pin_touch_irq.value() != 0:
+            return
+
+        z1 = read_xpt(0xB1)
+        z2 = read_xpt(0xC1)
+        # Настоящее нажатие пальцем даёт z1 > 400 и z2 < 3800 (отсекает 100% наводок и заряд 1нФ конденсаторов)
+        if z1 > 400 and z2 < 3800:
+            y1 = read_xpt(0x91)
+            y2 = read_xpt(0x91)
+            x1 = read_xpt(0xD1)
+            x2 = read_xpt(0xD0)  # Команда 0xD0 (PD1=0, PD0=0) читает X2 и снова включает /PENIRQ на IO36!
+            if abs(y1 - y2) < 250 and abs(x1 - x2) < 250:
+                touch_released = False
+                last_switch_ms = now_ms
+                led_g.value(0)
+
+                # В альбомной развёртке 0x60 (MV=1) горизонтальная ось 320px (< PREV .. NEXT >) — это Y (0x90),
+                # но если край гибкого шлейфа инвертирован, проверяем обе координаты:
+                horiz = y1 if abs(y1 - 2048) >= abs(x1 - 2048) else x1
+                if current_idx == 7 and 1300 < y1 < 2800 and 1300 < x1 < 2800:
+                    state["pomo_run"] = not state["pomo_run"]
+                    render_current()
+                else:
+                    if horiz < 2048:
+                        current_idx = (current_idx - 1) % len(BUILDERS)
+                    else:
+                        current_idx = (current_idx + 1) % len(BUILDERS)
+                    render_current()
+                lbl_nav_mid.set_text("MODE {}/9".format(current_idx + 1))
+                led_g.value(1)
+        else:
+            # Перевзводим /PENIRQ (PD1=0, PD0=0)
+            read_xpt(0x90)
+    except Exception:
+        pass
+
+timer_btn = lv.timer_create(poll_touch_and_boot, 70, None)
 timer_btn.set_repeat_count(-1)
 
 # Неблокирующее подключение к Wi-Fi и загрузка живой погоды Open-Meteo + NTP времени
