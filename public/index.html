@@ -99,20 +99,20 @@
         </div>
 
         <div class="card" style="padding:12px; background:var(--bg-input);">
-          <div style="font-size:11.5px; color:var(--text-muted);">Точная модель по вашему фото</div>
+          <div style="font-size:11.5px; color:var(--text-muted);">Маркировка вашего дисплея</div>
           <div id="scanBoardQuirks" style="font-size:13px; font-weight:700; color:#34d399; margin-top:2px;">
-            ESP32-2432S024R (Экран 2.4" L1435-2.4 • Пин 27)
+            Матрица L i 435-2 4 (2.4" • Пин 27 • USB-C)
           </div>
           <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">
-            Тачскрин XPT2046 (SPI1 CS=33) • Красный LED погашен
+            Тачскрин XPT2046 (IRQ=36, CS=33) • Красный LED погашен
           </div>
         </div>
       </div>
 
-      <!-- Быстрый 2-секундный тестер 4 профилей экрана для платы ESP32-2432S024R (L1435-2.4) -->
+      <!-- Быстрый 2-секундный тестер 4 профилей экрана для матрицы L i 435-2 4 -->
       <div style="background:rgba(10,16,29,0.85); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
         <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#34d399;">
-          🎛️ По вашим фото определена точная матрица: 2.4" L1435-2.4 (ESP32-2432S024R, USB-C)!
+          🎛️ Настроено специально под ваш дисплей «L i 435-2 4» (2.4", подсветка GPIO 27, USB-C)!
         </div>
         <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px; line-height:1.5;">
           На <b>Фото 1 (Профиль 4.3)</b> ориентация <code>0x60</code> и чёткость идеальны, а белый фон был из-за команды инверсии <code>0x21 (INVON)</code>. Теперь в <b>Профиле 4.1 (по умолчанию)</b> включён глубокий тёмный фон <code>0x20 (INVOFF)</code>, погашен слепящий красный светодиод слева внизу и включено переключение виджетов как с сайта, так и касанием экрана (левая/правая половина) и кнопкой <b>BOOT</b>!

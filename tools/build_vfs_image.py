@@ -206,15 +206,56 @@ try:
 except Exception:
     pass
 
-# Инициализируем резистивный тачскрин XPT2046 на общей шине SPI1 (CS=33, IRQ=36) для платы ESP32-2432S024R!
-touch_dev = None
+# Инициализируем резистивный тачскрин XPT2046:
+# Поддерживаем ОБЕ разводки плат CYD (SPI1: 14/13/12 и SPI2: 25/32/39) + аппаратный пин касания IRQ = GPIO 36!
+touch_dev_spi1 = None
 try:
-    touch_dev = machine.SPI.Device(spi_bus=spi_bus, freq=1000000, cs=33)
+    touch_dev_spi1 = machine.SPI.Device(spi_bus=spi_bus, freq=1000000, cs=33)
 except Exception as e:
-    print("TOUCH_DEV_ERR:", e)
+    print("TOUCH_SPI1_ERR:", e)
 
 pin_touch_irq = machine.Pin(36, machine.Pin.IN)
 btn_boot = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
+
+# Программный опрос второй возможной шины тачскрина (SCK=25, MOSI=32, MISO=39, CS=33)
+t_sck = machine.Pin(25, machine.Pin.OUT, value=0)
+t_mosi = machine.Pin(32, machine.Pin.OUT, value=0)
+t_miso = machine.Pin(39, machine.Pin.IN)
+
+def xpt_soft_transfer(cmd):
+    pin_touch_cs.value(0)
+    for b in range(8):
+        t_mosi.value((cmd >> (7 - b)) & 1)
+        t_sck.value(1)
+        t_sck.value(0)
+    val = 0
+    for b in range(16):
+        t_sck.value(1)
+        val = (val << 1) | (t_miso.value() & 1)
+        t_sck.value(0)
+    pin_touch_cs.value(1)
+    return (val >> 3) & 0xFFF
+
+tx_touch = bytearray([0, 0, 0])
+rx_touch = bytearray(3)
+
+def xpt_spi1_transfer(cmd):
+    if touch_dev_spi1 is None:
+        return 0
+    tx_touch[0] = cmd
+    tx_touch[1] = 0
+    tx_touch[2] = 0
+    touch_dev_spi1.write_readinto(tx_touch, rx_touch)
+    pin_touch_cs.value(1)
+    return (((rx_touch[1] << 8) | rx_touch[2]) >> 3) & 0xFFF
+
+# Активируем PENIRQ (PD1=0, PD0=0 -> пин 36 падает в 0 при касании экрана) на обеих шинах
+try:
+    xpt_soft_transfer(0x90)
+    xpt_spi1_transfer(0x90)
+    pin_touch_cs.value(1)
+except Exception:
+    pass
 
 th = task_handler.TaskHandler()
 
@@ -686,23 +727,13 @@ def print_diag_report():
 
 print_diag_report()
 
-# Безопасный опрос тачскрина XPT2046 (CS=33 на SPI1) и кнопки BOOT (GPIO 0) каждые 120 мс
-tx_touch = bytearray([0, 0, 0])
-rx_touch = bytearray(3)
+# Безопасный опрос тачскрина XPT2046 (IRQ=36 + шины 25/32/39 и 14/13/12) и кнопки BOOT (GPIO 0)
 last_touch_ms = 0
 last_boot_btn = 1
-
-def read_xpt_reg(cmd):
-    if touch_dev is None:
-        return 0
-    tx_touch[0] = cmd
-    tx_touch[1] = 0
-    tx_touch[2] = 0
-    touch_dev.write_readinto(tx_touch, rx_touch)
-    return ((rx_touch[1] << 8) | rx_touch[2]) >> 3
+last_irq_val = 1
 
 def poll_touch_and_buttons(t):
-    global current_idx, last_touch_ms, last_boot_btn
+    global current_idx, last_touch_ms, last_boot_btn, last_irq_val
     now_ms = time.ticks_ms()
 
     # 1. Физическая кнопка BOOT (GPIO 0) на плате
@@ -716,32 +747,38 @@ def poll_touch_and_buttons(t):
     except Exception:
         pass
 
-    # 2. Резистивный тачскрин XPT2046 (CS=33 на SPI1)
-    if touch_dev is not None and time.ticks_diff(now_ms, last_touch_ms) > 380:
+    # 2. Резистивный тачскрин XPT2046: опрашиваем шину ТОЛЬКО когда палец касается стекла (GPIO 36 == 0)!
+    # В покое CS=33 всегда равен 1 (HIGH), поэтому на экране гарантированно 0 помех и 0 полос!
+    if time.ticks_diff(now_ms, last_touch_ms) > 360:
         try:
-            z1 = read_xpt_reg(0xB0)
-            if 180 < z1 < 3950:
-                raw_x = read_xpt_reg(0xD0)
-                raw_y = read_xpt_reg(0x90)
+            if pin_touch_irq.value() == 0:
                 last_touch_ms = now_ms
-                # Коротко мигаем зелёным светодиодом при касании
                 led_g.value(0)
-                # Если открыт Помодоро (8/9) и нажали в центр экрана — старт/пауза таймера
+                x_soft = xpt_soft_transfer(0xD0)
+                y_soft = xpt_soft_transfer(0x90)
+                xpt_soft_transfer(0x90)  # Перевзводим PENIRQ (PD0=0)
+                x_spi1 = xpt_spi1_transfer(0xD0)
+                y_spi1 = xpt_spi1_transfer(0x90)
+                xpt_spi1_transfer(0x90)  # Перевзводим PENIRQ (PD0=0)
+                pin_touch_cs.value(1)
+
+                raw_x = x_soft if (100 < x_soft < 3950) else x_spi1
+                raw_y = y_soft if (100 < y_soft < 3950) else y_spi1
+
                 if current_idx == 7 and 1100 < raw_x < 2900 and 1100 < raw_y < 2900:
                     state["pomo_run"] = not state["pomo_run"]
                     render_current()
                 else:
-                    # Левая половина (< PREV) или правая половина (NEXT >)
-                    if raw_x < 1900:
+                    if 100 < raw_x < 1900:
                         current_idx = (current_idx - 1) % len(BUILDERS)
                     else:
                         current_idx = (current_idx + 1) % len(BUILDERS)
                     render_current()
                 led_g.value(1)
         except Exception:
-            pass
+            pin_touch_cs.value(1)
 
-timer_touch = lv.timer_create(poll_touch_and_buttons, 120, None)
+timer_touch = lv.timer_create(poll_touch_and_buttons, 100, None)
 timer_touch.set_repeat_count(-1)
 
 def connect_wifi_and_fetch():
