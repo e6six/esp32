@@ -154,6 +154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   renderWidgetsGallery();
   renderCydCanvas();
+  fetchLiveWeatherFromOpenMeteo();
 
   setInterval(() => {
     if (state.pomoRun && state.pomoSec > 0) {
@@ -162,6 +163,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderCydCanvas();
   }, 500);
 });
+
+// Получает реальную живую погоду из Open-Meteo прямо в браузере (и передаёт её на ESP32 при прошивке!)
+async function fetchLiveWeatherFromOpenMeteo() {
+  try {
+    const cityName = document.getElementById('selectCity')?.value || state.config.city || 'Москва';
+    const cInfo = state.cities[cityName] || { lat: state.config.latitude || 55.7558, lon: state.config.longitude || 37.6173 };
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${cInfo.lat}&longitude=${cInfo.lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+    const resp = await fetch(url);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (data && data.current_weather) {
+      const tNow = Math.round(Number(data.current_weather.temperature));
+      const wNow = Number(data.current_weather.windspeed || 3.0);
+      const tMax = data.daily?.temperature_2m_max?.[0] !== undefined ? Math.round(Number(data.daily.temperature_2m_max[0])) : tNow + 3;
+      const tMin = data.daily?.temperature_2m_min?.[0] !== undefined ? Math.round(Number(data.daily.temperature_2m_min[0])) : tNow - 2;
+      state.config.weatherCache = {
+        tempC: tNow,
+        tmaxC: tMax,
+        tminC: tMin,
+        windMs: wNow,
+        humidity: 65,
+        liveLoaded: true
+      };
+      renderCydCanvas();
+    }
+  } catch (e) {
+    console.warn('Не удалось обновить погоду в браузере:', e);
+  }
+}
+
+function fmtTempStr(val) {
+  const n = Math.round(Number(val ?? 14));
+  return n > 0 ? `+${n}°C` : `${n}°C`;
+}
 
 async function loadInitialStatus() {
   try {
@@ -436,9 +471,9 @@ function drawV1ClassicCal(ctx, now) {
   ctx.font = 'bold 12px sans-serif';
   ctx.fillText(`📍 ${state.config.city}`, 16, 132);
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(`+14 °C`, 16, 154);
+  ctx.fillText(fmtTempStr(state.config.weatherCache?.tempC), 16, 154);
   ctx.fillStyle = '#10B981';
-  ctx.fillText(`Ветер 3.5 м/с`, 16, 174);
+  ctx.fillText(`Ветер ${state.config.weatherCache?.windMs ?? 3.5} м/с`, 16, 174);
 
   ctx.fillStyle = '#0D1526';
   ctx.strokeStyle = '#1E3A5F';
@@ -508,7 +543,7 @@ function drawV2FlipClock(ctx, now) {
 
   ctx.fillStyle = '#FBBF24';
   ctx.font = 'bold 14px sans-serif';
-  const dStr = `${now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'short' })}  |  ${state.config.city} +14°C`;
+  const dStr = `${now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'short' })}  |  ${state.config.city} ${fmtTempStr(state.config.weatherCache?.tempC)}`;
   ctx.fillText(dStr, 22, 184);
 }
 
@@ -554,11 +589,11 @@ function drawV3TearCal(ctx, now) {
 
   ctx.fillStyle = '#FBBF24';
   ctx.font = 'bold 22px monospace';
-  ctx.fillText('+14 °C', 192, 148);
+  ctx.fillText(fmtTempStr(state.config.weatherCache?.tempC), 192, 148);
 
   ctx.fillStyle = '#10B981';
   ctx.font = '12px sans-serif';
-  ctx.fillText('Ветер 3.5 м/с', 192, 174);
+  ctx.fillText(`Ветер ${state.config.weatherCache?.windMs ?? 3.5} м/с`, 192, 174);
 }
 
 function drawV4WeatherPro(ctx, now) {
@@ -573,19 +608,20 @@ function drawV4WeatherPro(ctx, now) {
 
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 48px monospace';
-  ctx.fillText('+14 °C', 22, 114);
+  ctx.fillText(fmtTempStr(state.config.weatherCache?.tempC), 22, 114);
 
+  const wc = state.config.weatherCache || {};
   ctx.fillStyle = '#10B981';
   ctx.font = 'bold 13px sans-serif';
-  ctx.fillText('Макс: +17°C   Мин: +12°C', 22, 148);
+  ctx.fillText(`Макс: ${fmtTempStr(wc.tmaxC ?? 17)}   Мин: ${fmtTempStr(wc.tminC ?? 12)}`, 22, 148);
   ctx.fillStyle = '#FBBF24';
-  ctx.fillText('Ветер: 3.5 м/с   Влажность: 64%', 22, 174);
+  ctx.fillText(`Ветер: ${wc.windMs ?? 3.5} м/с   Влажность: ${wc.humidity ?? 64}%`, 22, 174);
 }
 
 function drawV5DayPlanner(ctx, now) {
   ctx.fillStyle = '#FBBF24';
   ctx.font = 'bold 16px sans-serif';
-  ctx.fillText(`🕒 ${now.toTimeString().slice(0, 5)}  |  ${state.config.city} +14°C`, 14, 50);
+  ctx.fillText(`🕒 ${now.toTimeString().slice(0, 5)}  |  ${state.config.city} ${fmtTempStr(state.config.weatherCache?.tempC)}`, 14, 50);
 
   const notes = state.config.notes || [];
   for (let i = 0; i < 3; i++) {
@@ -645,7 +681,7 @@ function drawV7Countdown(ctx, now) {
 
   ctx.fillStyle = '#FBBF24';
   ctx.font = 'bold 13px sans-serif';
-  const sub = `Сейчас: ${now.toTimeString().slice(0, 5)}  |  ${state.config.city} +14°C`;
+  const sub = `Сейчас: ${now.toTimeString().slice(0, 5)}  |  ${state.config.city} ${fmtTempStr(state.config.weatherCache?.tempC)}`;
   ctx.fillText(sub, 160 - ctx.measureText(sub).width / 2, 174);
 }
 
@@ -674,7 +710,7 @@ function drawV8Pomodoro(ctx, now) {
 
   ctx.fillStyle = '#00E5FF';
   ctx.font = 'bold 13px sans-serif';
-  ctx.fillText(`Часы: ${now.toTimeString().slice(0, 5)}  |  ${state.config.city} +14°C`, 54, 184);
+  ctx.fillText(`Часы: ${now.toTimeString().slice(0, 5)}  |  ${state.config.city} ${fmtTempStr(state.config.weatherCache?.tempC)}`, 54, 184);
 }
 
 function drawV9NightClock(ctx, now) {
@@ -684,7 +720,7 @@ function drawV9NightClock(ctx, now) {
 
   ctx.fillStyle = '#B45309';
   ctx.font = 'bold 15px sans-serif';
-  const dStr = `${now.toLocaleDateString('ru-RU')}  •  ${state.config.city} +14°C`;
+  const dStr = `${now.toLocaleDateString('ru-RU')}  •  ${state.config.city} ${fmtTempStr(state.config.weatherCache?.tempC)}`;
   ctx.fillText(dStr, 160 - ctx.measureText(dStr).width / 2, 162);
 }
 
@@ -726,8 +762,9 @@ function setupEventListeners() {
   });
 
   ['inputWifiSsid', 'inputWifiPass', 'selectCity', 'selectCydVariant'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', () => {
-      saveConfigToServer();
+    document.getElementById(id)?.addEventListener('change', async () => {
+      await saveConfigToServer();
+      await fetchLiveWeatherFromOpenMeteo();
       renderCydCanvas();
     });
   });
@@ -787,6 +824,17 @@ function setProgress(pct, stepText) {
 // Формирует JSON-байты CYDCFG1:{...}\0 для записи как в /config.txt внутри vfs_widgets.bin, так и в сектор 0x3E3000
 function buildUserConfigBytes(cfg) {
   const cityInfo = state.cities[cfg.city] || { en: toAsciiSafe(cfg.city || 'Moscow'), lat: 55.7558, lon: 37.6173, tz: 3 };
+  const wc = cfg.weatherCache || {};
+  const now = new Date();
+  const rtcTuple = [
+    now.getFullYear(),
+    now.getMonth() + 1,
+    now.getDate(),
+    (now.getDay() + 6) % 7, // Понедельник = 0 .. Воскресенье = 6
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds()
+  ];
   const payloadObj = {
     cydVariant: cfg.cydVariant || 's024_perfect',
     wifiSsid: cfg.wifiSsid || '',
@@ -799,8 +847,12 @@ function buildUserConfigBytes(cfg) {
     notes: (cfg.notes || []).slice(0, 3).map(s => toAsciiSafe(s).slice(0, 34)),
     eventTitle: toAsciiSafe(cfg.eventTitle || 'NEW YEAR').slice(0, 26),
     eventDays: toAsciiSafe(cfg.eventDays || '73 DAYS').slice(0, 18),
-    tempC: 14,
-    windMs: 3.5
+    tempC: Number(wc.tempC ?? 14),
+    tmaxC: Number(wc.tmaxC ?? Number(wc.tempC ?? 14) + 3),
+    tminC: Number(wc.tminC ?? Number(wc.tempC ?? 14) - 2),
+    windMs: Number(wc.windMs ?? 3.5),
+    humidity: Number(wc.humidity ?? 65),
+    rtcTuple
   };
   return new TextEncoder().encode('CYDCFG1:' + JSON.stringify(payloadObj) + '\0');
 }
@@ -850,17 +902,21 @@ async function runOneClickInstall(widgetId, forceFullEngineFlash = false) {
   if (widgetId) {
     state.config.selectedWidget = widgetId;
   }
-  setProgress(5, 'Сохраняем настройки и готовим пакет для вашей ESP32-2432S024R...');
+  setProgress(5, 'Запрашиваем актуальную погоду Open-Meteo и точное время для вашей платы...');
   await saveConfigToServer(widgetId);
+  await fetchLiveWeatherFromOpenMeteo();
   renderWidgetsGallery();
 
   const activeWidgetId = widgetId || state.config.selectedWidget || 'v1_classic_cal';
   state.config.selectedWidget = activeWidgetId;
   const wInfo = WIDGET_CATALOG.find(w => w.id === activeWidgetId) || WIDGET_CATALOG[0];
+  const nowStr = new Date().toLocaleTimeString('ru-RU');
+  const wc = state.config.weatherCache || {};
   logInstall(`🚀 Выбран виджет: "${wInfo.title}" (${activeWidgetId})`);
-  logInstall(`🟨 Профиль матрицы L1435-2.4: ${state.config.cydVariant}`);
-  logInstall(`📶 Wi-Fi: ${state.config.wifiSsid ? state.config.wifiSsid : '(автономные часы и календарь без Wi-Fi)'}`);
-  logInstall(`🌤️ Город погоды: ${state.config.city} (Lat ${state.config.latitude}, Lon ${state.config.longitude})`);
+  logInstall(`🕒 Точное время ПК (вшито в часы RTC платы): ${nowStr}`);
+  logInstall(`🌤️ Актуальная погода Open-Meteo (${state.config.city}): ${fmtTempStr(wc.tempC)}, ветер ${wc.windMs ?? 3.5} м/с`);
+  logInstall(`🟨 Профиль матрицы L i 435-2 4: ${state.config.cydVariant}`);
+  logInstall(`📶 Фоновый Wi-Fi платы: ${state.config.wifiSsid ? state.config.wifiSsid + ' (2.4 ГГц)' : '(время и погода переданы напрямую с сайта!)'}`);
 
   if (!('serial' in navigator)) {
     setProgress(0, '⚠️ Откройте сайт в отдельной вкладке Chrome / Edge / Яндекс / Opera');

@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Генератор образа файловой системы LittleFS v2 (vfs_widgets.bin) для ESP32-2432S024R / S028 (L1435-2.4).
+Генератор образа файловой системы LittleFS v2 (vfs_widgets.bin) для дисплея L i 435-2 4 (ESP32-2432S024R / S028).
 Записывается по адресу 0x343000 (раздел vfs, 189 блоков по 4096 байт).
-Хранит конфигурацию в /config.txt (которая патчется прямо в браузере перед прошивкой)
-и дублирует чтение из блока 160 (0x3E3000).
+- Полностью убран опрос плавающего пина GPIO 36 и CS=33 (больше никаких самопроизвольных переключений и мерцаний!).
+- Переключение виджетов: в 1 клик с сайта ИЛИ физической кнопкой BOOT (GPIO 0) на плате.
+- Реальное время (RTC) и живая погода Open-Meteo передаются прямо из браузера в момент прошивки + обновляются по Wi-Fi в фоне!
 """
 
 import os
 from littlefs import LittleFS
 
-BOOT_PY = """# boot.py — ESP32-2432S024R (L1435-2.4) / 2432S028
+BOOT_PY = """# boot.py — ESP32-2432S024R (L i 435-2 4)
 import gc
 import machine
 
-# 1. Изолируем CS тачскрина (GPIO 33) и SD-карты (GPIO 5) в HIGH (1)
+# 1. Намертво фиксируем CS тачскрина (GPIO 33) и SD-карты (GPIO 5) в HIGH (1), чтобы шина SPI1 никогда не мерцала
 try:
     machine.Pin(33, machine.Pin.OUT, value=1)
     machine.Pin(5, machine.Pin.OUT, value=1)
@@ -37,10 +38,11 @@ DEFAULT_CFG_BYTES = (
     b'"cityEn":"Moscow","latitude":55.7558,"longitude":37.6173,"timezoneOffset":3,'
     b'"selectedWidget":"v1_classic_cal","notes":["Morning coffee & warmup",'
     b'"Check daily tasks","Evening walk 19:00"],"eventTitle":"NEW YEAR",'
-    b'"eventDays":"73 DAYS","tempC":14,"windMs":3.5}\x00'
+    b'"eventDays":"73 DAYS","tempC":14,"tmaxC":17,"tminC":11,"windMs":3.5,"humidity":64,'
+    b'"rtcTuple":[2026,10,20,1,14,30,0]}\x00'
 ).ljust(2048, b" ")
 
-MAIN_PY = """# main.py — ESP32-2432S024R (L1435-2.4) / 2432S028 10 Clocks, Calendars, Weather + Touch
+MAIN_PY = """# main.py — ESP32-2432S024R (L i 435-2 4) 10 Clocks, Calendars & Live Weather (Zero Flicker)
 import os
 import gc
 import sys
@@ -53,7 +55,7 @@ import lcd_bus
 import ili9341
 import task_handler
 
-# Удерживаем CS=33 и CS=5 в HIGH, гасим красный RGB LED (4, 16, 17 -> 1)
+# Держим CS=33 и CS=5 в HIGH (1) постоянно — никаких помех на SPI1!
 pin_touch_cs = machine.Pin(33, machine.Pin.OUT, value=1)
 pin_sd_cs = machine.Pin(5, machine.Pin.OUT, value=1)
 led_r = machine.Pin(4, machine.Pin.OUT, value=1)
@@ -75,11 +77,14 @@ cfg = {
     "eventTitle": "NEW YEAR",
     "eventDays": "73 DAYS",
     "tempC": 14,
-    "windMs": 3.5
+    "tmaxC": 17,
+    "tminC": 11,
+    "windMs": 3.5,
+    "humidity": 64,
+    "rtcTuple": [2026, 10, 20, 1, 14, 30, 0]
 }
 
-# 1. Читаем конфиг напрямую из файла /config.txt в файловой системе LittleFS
-cfg_loaded = False
+# 1. Читаем конфиг из файла /config.txt в файловой системе LittleFS
 try:
     with open("/config.txt", "rb") as f:
         raw_file = f.read()
@@ -89,12 +94,11 @@ try:
             loaded = json.loads(bytes(raw_file[8:end_idx]).decode("utf-8"))
             for k in loaded:
                 cfg[k] = loaded[k]
-            cfg_loaded = True
             print("CYD_CONFIG_FILE_OK:", cfg.get("selectedWidget"), cfg.get("cydVariant"))
 except Exception as e:
     print("CYD_CONFIG_FILE_ERR:", e)
 
-# 2. Резервное чтение из сектора 160 (0x3E3000), если /config.txt не был пропатчен
+# 2. Резервное чтение из сектора 160 (0x3E3000)
 try:
     from flashbdev import bdev
     raw = bytearray(4096)
@@ -105,15 +109,24 @@ try:
             loaded = json.loads(bytes(raw[8:end_idx]).decode("utf-8"))
             for k in loaded:
                 cfg[k] = loaded[k]
-            print("CYD_CONFIG_SECTOR_OK:", cfg.get("selectedWidget"), cfg.get("cydVariant"))
 except Exception:
     pass
 
+# Устанавливаем точное реальное время ПК в аппаратные часы RTC ESP32 сразу при старте!
+# Формат machine.RTC().datetime(): (year, month, day, weekday, hours, minutes, seconds, subseconds)
+rtc_synced_from_pc = False
+try:
+    rt = cfg.get("rtcTuple")
+    if isinstance(rt, list) and len(rt) >= 7:
+        machine.RTC().datetime((int(rt[0]), int(rt[1]), int(rt[2]), int(rt[3]), int(rt[4]), int(rt[5]), int(rt[6]), 0))
+        rtc_synced_from_pc = True
+        print("CYD_RTC_SET_FROM_PC:", rt)
+except Exception as e:
+    print("CYD_RTC_ERR:", e)
+
 variant = str(cfg.get("cydVariant", "s024_perfect"))
 
-# Настройки специально под матрицу L1435-2.4 (ESP32-2432S024R, подсветка GPIO 27):
-# По фото 1 (Профиль 4.3): ориентация rot_hex=0x60 и порядок каналов RGB (use_bgr=False) ИДЕАЛЬНЫ,
-# а для тёмного фона (#070B14) вместо белого нужно отправить команду 0x20 (INVOFF) вместо 0x21 (INVON)!
+# Настройки под матрицу L i 435-2 4 (2.4", подсветка GPIO 27):
 bl_pin = 27
 aux_bl_pin = 21
 rot_hex = 0x60
@@ -123,22 +136,18 @@ byte_swap = 1
 spi_freq = 16000000
 
 if variant in ("s024_perfect", "variant4_bl27", "standard"):
-    # Профиль 4.1 (Идеальный для вашей платы L1435-2.4): rot=0x60, RGB, INVOFF (0x20) -> Тёмный фон и правильные цвета!
     rot_hex = 0x60
     use_bgr = False
     inv_cmd = 0x20
 elif variant == "s024_bgr_inv0":
-    # Профиль 4.2: rot=0x60, BGR, INVOFF (0x20) — если синий и красный поменялись местами
     rot_hex = 0x60
     use_bgr = True
     inv_cmd = 0x20
 elif variant in ("bl27_st7789", "s024_rgb_inv1"):
-    # Профиль 4.3 (как на вашем первом фото — светлый инверсный фон): rot=0x60, RGB, INVON (0x21)
     rot_hex = 0x60
     use_bgr = False
     inv_cmd = 0x21
 elif variant in ("bl27_type2_e0", "s024_bgr_inv1"):
-    # Профиль 4.4: rot=0x60, BGR, INVON (0x21)
     rot_hex = 0x60
     use_bgr = True
     inv_cmd = 0x21
@@ -147,10 +156,6 @@ try:
     machine.Pin(aux_bl_pin, machine.Pin.OUT, value=1)
 except Exception:
     pass
-
-print("CYD_DISPLAY_INIT: variant={}, bl_pin={}, rot={}, bgr={}, inv={}".format(
-    variant, bl_pin, hex(rot_hex), use_bgr, hex(inv_cmd)
-))
 
 gc.collect()
 spi_bus = machine.SPI.Bus(host=1, mosi=13, miso=12, sck=14)
@@ -170,9 +175,7 @@ display = ili9341.ILI9341(
 display._ORIENTATION_TABLE = (rot_hex, 0x0, 0x0, 0x0)
 display.set_power(True)
 
-# Чистая инициализация из Профиля 4.3 (которая дала чёткую картинку без полос на фото 1!),
-# но с переключением инверсии 0x20 (INVOFF) для глубокого тёмного фона #070B14!
-display.set_params(0x01)  # SWRESET — сбрасывает старые настройки матрицы
+display.set_params(0x01)  # SWRESET
 time.sleep_ms(120)
 display.set_params(0x11)  # SLPOUT
 time.sleep_ms(120)
@@ -188,7 +191,7 @@ display.set_params(0xC3, bytearray([0x12]))
 display.set_params(0xC4, bytearray([0x20]))
 display.set_params(0xC6, bytearray([0x0F]))
 display.set_params(0xD0, bytearray([0xA4, 0xA1]))
-display.set_params(inv_cmd)  # 0x20 = Тёмный фон, 0x21 = Светлый инверсный фон
+display.set_params(inv_cmd)
 display.set_params(0x13)  # NORON
 time.sleep_ms(20)
 display.set_params(0x29)  # DISPON
@@ -196,7 +199,6 @@ time.sleep_ms(50)
 display._initilized = True
 
 display.set_rotation(lv.DISPLAY_ROTATION._0)
-# Повторно фиксируем MADCTL и INV после set_rotation, чтобы LVGL не перезаписал их
 display.set_params(0x36, bytearray([mad_val]))
 display.set_params(inv_cmd)
 display.set_backlight(100)
@@ -206,60 +208,12 @@ try:
 except Exception:
     pass
 
-# Инициализируем резистивный тачскрин XPT2046:
-# Поддерживаем ОБЕ разводки плат CYD (SPI1: 14/13/12 и SPI2: 25/32/39) + аппаратный пин касания IRQ = GPIO 36!
-touch_dev_spi1 = None
-try:
-    touch_dev_spi1 = machine.SPI.Device(spi_bus=spi_bus, freq=1000000, cs=33)
-except Exception as e:
-    print("TOUCH_SPI1_ERR:", e)
-
-pin_touch_irq = machine.Pin(36, machine.Pin.IN)
+# Физическая кнопка BOOT (GPIO 0) с аппаратной подтяжкой к 3.3V — для ручного переключения виджетов без помех
 btn_boot = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
-
-# Программный опрос второй возможной шины тачскрина (SCK=25, MOSI=32, MISO=39, CS=33)
-t_sck = machine.Pin(25, machine.Pin.OUT, value=0)
-t_mosi = machine.Pin(32, machine.Pin.OUT, value=0)
-t_miso = machine.Pin(39, machine.Pin.IN)
-
-def xpt_soft_transfer(cmd):
-    pin_touch_cs.value(0)
-    for b in range(8):
-        t_mosi.value((cmd >> (7 - b)) & 1)
-        t_sck.value(1)
-        t_sck.value(0)
-    val = 0
-    for b in range(16):
-        t_sck.value(1)
-        val = (val << 1) | (t_miso.value() & 1)
-        t_sck.value(0)
-    pin_touch_cs.value(1)
-    return (val >> 3) & 0xFFF
-
-tx_touch = bytearray([0, 0, 0])
-rx_touch = bytearray(3)
-
-def xpt_spi1_transfer(cmd):
-    if touch_dev_spi1 is None:
-        return 0
-    tx_touch[0] = cmd
-    tx_touch[1] = 0
-    tx_touch[2] = 0
-    touch_dev_spi1.write_readinto(tx_touch, rx_touch)
-    pin_touch_cs.value(1)
-    return (((rx_touch[1] << 8) | rx_touch[2]) >> 3) & 0xFFF
-
-# Активируем PENIRQ (PD1=0, PD0=0 -> пин 36 падает в 0 при касании экрана) на обеих шинах
-try:
-    xpt_soft_transfer(0x90)
-    xpt_spi1_transfer(0x90)
-    pin_touch_cs.value(1)
-except Exception:
-    pass
 
 th = task_handler.TaskHandler()
 
-WIFI_SSID = str(cfg.get("wifiSsid", ""))
+WIFI_SSID = str(cfg.get("wifiSsid", "")).strip()
 WIFI_PASS = str(cfg.get("wifiPassword", ""))
 CITY_NAME = str(cfg.get("cityEn", "Moscow"))
 CITY_LAT = float(cfg.get("latitude", 55.7558))
@@ -273,15 +227,18 @@ EVENT_DAYS = str(cfg.get("eventDays", "73 DAYS"))
 
 state = {
     "temp": float(cfg.get("tempC", 14)),
+    "tmax": float(cfg.get("tmaxC", float(cfg.get("tempC", 14)) + 3)),
+    "tmin": float(cfg.get("tminC", float(cfg.get("tempC", 14)) - 2)),
     "wind": float(cfg.get("windMs", 3.5)),
-    "hum": 64,
-    "tmax": float(cfg.get("tempC", 14)) + 3,
-    "tmin": float(cfg.get("tempC", 14)) - 2,
+    "hum": int(cfg.get("humidity", 64)),
     "wifi_ok": False,
-    "wifi_tried": False,
+    "wifi_connecting": False,
+    "wifi_synced": False,
+    "ntp_applied": False,
     "pomo_sec": 25 * 60,
     "pomo_run": False,
-    "ticks": 0
+    "ticks": 0,
+    "last_min": -1
 }
 
 MODES = [
@@ -322,7 +279,7 @@ lbl_top_left.set_style_text_font(lv.font_montserrat_12, 0)
 lbl_top_left.align(lv.ALIGN.LEFT_MID, 8, 0)
 
 lbl_top_right = lv.label(top)
-lbl_top_right.set_text(CITY_NAME[:14])
+lbl_top_right.set_text(CITY_NAME[:10] + (" (SYNC)" if rtc_synced_from_pc else ""))
 lbl_top_right.set_style_text_color(lv.color_hex(0x10B981), 0)
 lbl_top_right.set_style_text_font(lv.font_montserrat_12, 0)
 lbl_top_right.align(lv.ALIGN.RIGHT_MID, -8, 0)
@@ -339,8 +296,12 @@ nav.set_pos(0, 206)
 nav.set_style_bg_color(lv.color_hex(0x0E172A), 0)
 nav.set_style_bg_opa(255, 0)
 
+# Если время синхронизировано по NTP (UTC), прибавляем TZ_OFFSET; если задано напрямую с ПК — уже локальное!
 def get_dt():
-    t = time.localtime(time.time() + TZ_OFFSET)
+    if state["ntp_applied"]:
+        t = time.localtime(time.time() + TZ_OFFSET)
+    else:
+        t = time.localtime()
     if t[0] < 2025:
         return (2026, 10, 20, 14, 30, t[5], 1, 293)
     return t
@@ -360,6 +321,8 @@ def dow_mon_first(y, m, d):
         y -= 1
     w = (y + y // 4 - y // 100 + y // 400 + t_tbl[m - 1] + d) % 7
     return (w + 6) % 7
+
+pomo_lbl_ref = None
 
 def build_v1():
     lbl_top_left.set_text("1/9 CLASSIC CALENDAR")
@@ -623,6 +586,7 @@ def build_v7():
     l3.align(lv.ALIGN.BOTTOM_MID, 0, -14)
 
 def build_v8():
+    global pomo_lbl_ref
     lbl_top_left.set_text("8/9 POMODORO & CLOCK")
     t = get_dt()
     mins = state["pomo_sec"] // 60
@@ -633,19 +597,20 @@ def build_v8():
     pl.set_style_text_font(lv.font_montserrat_48, 0)
     pl.set_style_text_color(lv.color_hex(0xF59E0B), 0)
     pl.align(lv.ALIGN.TOP_MID, 0, 14)
+    pomo_lbl_ref = pl
 
     btn1 = lv.button(body)
     btn1.set_size(120, 42)
     btn1.set_pos(30, 82)
     b1l = lv.label(btn1)
-    b1l.set_text("PAUSE" if state["pomo_run"] else "START")
+    b1l.set_text("RUNNING" if state["pomo_run"] else "READY 25:00")
     b1l.center()
 
     btn2 = lv.button(body)
     btn2.set_size(120, 42)
     btn2.set_pos(170, 82)
     b2l = lv.label(btn2)
-    b2l.set_text("RESET 25:00")
+    b2l.set_text("FOCUS MODE")
     b2l.center()
 
     cl = lv.label(body)
@@ -675,9 +640,13 @@ BUILDERS = (
 )
 
 def render_current():
+    global pomo_lbl_ref
     try:
+        pomo_lbl_ref = None
         gc.collect()
         body.clean()
+        t_now = get_dt()
+        state["last_min"] = t_now[4]
         BUILDERS[current_idx % len(BUILDERS)]()
         gc.collect()
     except Exception as e:
@@ -692,7 +661,7 @@ lp.set_style_text_font(lv.font_montserrat_12, 0)
 lp.center()
 
 lbl_nav_mid = lv.label(nav)
-lbl_nav_mid.set_text("TOUCH / BOOT TO SWITCH")
+lbl_nav_mid.set_text("BOOT BTN OR WEB TO SWITCH")
 lbl_nav_mid.set_style_text_font(lv.font_montserrat_10, 0)
 lbl_nav_mid.set_style_text_color(lv.color_hex(0x94A3B8), 0)
 lbl_nav_mid.align(lv.ALIGN.CENTER, 0, 0)
@@ -711,14 +680,14 @@ def print_diag_report():
     try:
         rep = {
             "status": "SCREEN_ACTIVE",
-            "board": "ESP32-2432S024R (2.4 inch L1435-2.4)",
+            "board": "ESP32-2432S024R (L i 435-2 4)",
             "release": os.uname().release,
             "mem_free_kb": gc.mem_free() // 1024,
             "variant": variant,
             "bl_pin": bl_pin,
             "rot": hex(rot_hex),
             "inv": hex(inv_cmd),
-            "touch_type": "Resistive XPT2046 (SPI1 CS=33, IRQ=36)",
+            "wifi_ok": state["wifi_ok"],
             "widget": MODES[current_idx % len(MODES)]
         }
         print("CYD_SCAN_REPORT:" + json.dumps(rep))
@@ -727,61 +696,32 @@ def print_diag_report():
 
 print_diag_report()
 
-# Безопасный опрос тачскрина XPT2046 (IRQ=36 + шины 25/32/39 и 14/13/12) и кнопки BOOT (GPIO 0)
-last_touch_ms = 0
-last_boot_btn = 1
-last_irq_val = 1
+# Опрос ТОЛЬКО аппаратной кнопки BOOT (GPIO 0) с антидребезгом (требует 2 подряд отсчёта LOW)
+boot_hold_cnt = 0
 
-def poll_touch_and_buttons(t):
-    global current_idx, last_touch_ms, last_boot_btn, last_irq_val
-    now_ms = time.ticks_ms()
-
-    # 1. Физическая кнопка BOOT (GPIO 0) на плате
+def poll_boot_button(t):
+    global current_idx, boot_hold_cnt
     try:
-        b_val = btn_boot.value()
-        if b_val == 0 and last_boot_btn == 1:
-            current_idx = (current_idx + 1) % len(BUILDERS)
-            render_current()
-            last_touch_ms = now_ms
-        last_boot_btn = b_val
+        if btn_boot.value() == 0:
+            boot_hold_cnt += 1
+            if boot_hold_cnt == 2:
+                led_g.value(0)
+                current_idx = (current_idx + 1) % len(BUILDERS)
+                render_current()
+                led_g.value(1)
+        else:
+            boot_hold_cnt = 0
     except Exception:
         pass
 
-    # 2. Резистивный тачскрин XPT2046: опрашиваем шину ТОЛЬКО когда палец касается стекла (GPIO 36 == 0)!
-    # В покое CS=33 всегда равен 1 (HIGH), поэтому на экране гарантированно 0 помех и 0 полос!
-    if time.ticks_diff(now_ms, last_touch_ms) > 360:
-        try:
-            if pin_touch_irq.value() == 0:
-                last_touch_ms = now_ms
-                led_g.value(0)
-                x_soft = xpt_soft_transfer(0xD0)
-                y_soft = xpt_soft_transfer(0x90)
-                xpt_soft_transfer(0x90)  # Перевзводим PENIRQ (PD0=0)
-                x_spi1 = xpt_spi1_transfer(0xD0)
-                y_spi1 = xpt_spi1_transfer(0x90)
-                xpt_spi1_transfer(0x90)  # Перевзводим PENIRQ (PD0=0)
-                pin_touch_cs.value(1)
+timer_btn = lv.timer_create(poll_boot_button, 80, None)
+timer_btn.set_repeat_count(-1)
 
-                raw_x = x_soft if (100 < x_soft < 3950) else x_spi1
-                raw_y = y_soft if (100 < y_soft < 3950) else y_spi1
+# Неблокирующее подключение к Wi-Fi и загрузка живой погоды Open-Meteo + NTP времени
+wlan = None
 
-                if current_idx == 7 and 1100 < raw_x < 2900 and 1100 < raw_y < 2900:
-                    state["pomo_run"] = not state["pomo_run"]
-                    render_current()
-                else:
-                    if 100 < raw_x < 1900:
-                        current_idx = (current_idx - 1) % len(BUILDERS)
-                    else:
-                        current_idx = (current_idx + 1) % len(BUILDERS)
-                    render_current()
-                led_g.value(1)
-        except Exception:
-            pin_touch_cs.value(1)
-
-timer_touch = lv.timer_create(poll_touch_and_buttons, 100, None)
-timer_touch.set_repeat_count(-1)
-
-def connect_wifi_and_fetch():
+def start_wifi_nonblocking():
+    global wlan
     if not WIFI_SSID:
         return
     try:
@@ -791,37 +731,41 @@ def connect_wifi_and_fetch():
         if not wlan.isconnected():
             lbl_top_right.set_text("Wi-Fi...")
             wlan.connect(WIFI_SSID, WIFI_PASS)
-            for _ in range(15):
-                if wlan.isconnected():
-                    break
-                time.sleep_ms(200)
-        if wlan.isconnected():
-            state["wifi_ok"] = True
-            lbl_top_right.set_text(CITY_NAME[:10] + " OK")
-            try:
-                import ntptime
-                ntptime.settime()
-            except Exception:
-                pass
-            try:
-                import urequests
-                url = "http://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current_weather=true".format(CITY_LAT, CITY_LON)
-                r = urequests.get(url)
-                data = r.json()
-                r.close()
-                if "current_weather" in data:
-                    t_now = data["current_weather"].get("temperature", state["temp"])
-                    state["temp"] = t_now
-                    state["tmax"] = t_now + 3
-                    state["tmin"] = t_now - 2
-                    state["wind"] = data["current_weather"].get("windspeed", state["wind"])
-            except Exception:
-                pass
-            render_current()
-        else:
-            lbl_top_right.set_text(CITY_NAME[:12])
-    except Exception:
-        pass
+            state["wifi_connecting"] = True
+    except Exception as e:
+        print("WIFI_START_ERR:", e)
+
+def sync_ntp_and_weather():
+    try:
+        import ntptime
+        ntptime.settime()
+        state["ntp_applied"] = True
+        print("CYD_NTP_OK")
+    except Exception as e:
+        print("CYD_NTP_ERR:", e)
+
+    for proto in ("http", "https"):
+        try:
+            import urequests
+            url = "{}://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current_weather=true".format(
+                proto, CITY_LAT, CITY_LON
+            )
+            r = urequests.get(url)
+            data = r.json()
+            r.close()
+            if "current_weather" in data:
+                t_now = float(data["current_weather"].get("temperature", state["temp"]))
+                state["temp"] = t_now
+                state["tmax"] = t_now + 3
+                state["tmin"] = t_now - 2
+                state["wind"] = float(data["current_weather"].get("windspeed", state["wind"]))
+                print("CYD_WEATHER_OK:", t_now)
+                break
+        except Exception as e:
+            print("CYD_WEATHER_ERR:", proto, e)
+
+    lbl_top_right.set_text("WIFI OK " + fmt_temp(state["temp"]))
+    render_current()
 
 poll_in = select.poll()
 poll_in.register(sys.stdin, select.POLLIN)
@@ -830,19 +774,44 @@ s_buf = ""
 def tick_cb(t):
     global current_idx, s_buf
     state["ticks"] += 1
-    if state["ticks"] == 2 and WIFI_SSID and not state["wifi_tried"]:
-        state["wifi_tried"] = True
-        connect_wifi_and_fetch()
 
+    # 1. Неблокирующий автомат подключения к Wi-Fi (ждёт сколько нужно: от 1 до 25 секунд)
+    if state["ticks"] == 1 and WIFI_SSID:
+        start_wifi_nonblocking()
+    elif state["wifi_connecting"] and not state["wifi_synced"] and wlan is not None:
+        try:
+            if wlan.isconnected():
+                state["wifi_ok"] = True
+                state["wifi_synced"] = True
+                state["wifi_connecting"] = False
+                sync_ntp_and_weather()
+            elif state["ticks"] > 25:
+                state["wifi_connecting"] = False
+                lbl_top_right.set_text(CITY_NAME[:10] + " (SYNC)")
+        except Exception:
+            pass
+    elif state["wifi_synced"] and state["ticks"] % 900 == 0 and wlan is not None:
+        try:
+            if wlan.isconnected():
+                sync_ntp_and_weather()
+        except Exception:
+            pass
+
+    # 2. Обновляем Помодоро-таймер точечно без очистки экрана (без мерцания!)
     if state["pomo_run"] and state["pomo_sec"] > 0:
         state["pomo_sec"] -= 1
-        if current_idx == 7:
-            render_current()
+        if current_idx == 7 and pomo_lbl_ref is not None:
+            try:
+                pomo_lbl_ref.set_text("{:02d}:{:02d}".format(state["pomo_sec"] // 60, state["pomo_sec"] % 60))
+            except Exception:
+                pass
 
-    if AUTO_CAROUSEL and state["ticks"] % 10 == 0:
+    # 3. Перерисовываем экран ТОЛЬКО при смене минуты (никаких 30-секундных миганий!) или в режиме Авто-карусели (10/10)
+    t_now = get_dt()
+    if AUTO_CAROUSEL and state["ticks"] % 15 == 0:
         current_idx = (current_idx + 1) % len(BUILDERS)
         render_current()
-    elif state["ticks"] % 30 == 0:
+    elif t_now[4] != state["last_min"]:
         render_current()
 
     while poll_in.poll(0):
