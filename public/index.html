@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP32-2432S028 — 10 Вариаций Часов, Календарей и Погоды в 1 клик</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- Шапка сайта -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">CYD</div>
+      <div>
+        <div class="brand-title">ESP32-2432S028 — 10 Часов, Календарей и Погоды в 1 клик</div>
+        <div class="brand-subtitle">Специально для жёлтой платы 2.8" (320×240) • Автономная работа по Wi-Fi • Установка прямо из браузера</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <div id="usbStatusPill" class="status-pill">
+        <span class="status-dot"></span>
+        <span id="usbStatusText">USB: Готов к установке</span>
+      </div>
+
+      <button id="btnForceReflashEngine" class="btn btn-sm btn-warning" title="Заменить текущую прошивку Bruce 1.11.1 на графический движок">
+        🔥 Прошить с нуля (заменить Bruce 1.11.1)
+      </button>
+
+      <a id="btnOpenNewTab" href="/" target="_blank" rel="noopener" class="btn btn-sm btn-primary">
+        ↗ Открыть в новой вкладке (для доступа к USB)
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Предупреждение если открыто во фрейме -->
+    <div id="iframeNotice" class="newtab-notice" style="display:none;">
+      <div>
+        ⚠️ <strong>Для подключения платы по USB:</strong> Вы сейчас смотрите сайт во встроенном окне предпросмотра. Нажмите кнопку справа, чтобы открыть сайт в отдельной вкладке браузера (Chrome / Edge / Яндекс / Opera) и прошить ESP32-2432S028:
+      </div>
+      <a id="btnOpenNewTabBanner" href="/" target="_blank" rel="noopener" class="btn btn-warning btn-sm">
+        ↗ Открыть сайт в отдельной вкладке
+      </a>
+    </div>
+
+    <!-- Блок Быстрого Старта на своём ПК (2 команды) -->
+    <section class="card" style="padding:14px 20px; background:rgba(16,185,129,0.06); border-color:rgba(16,185,129,0.35);">
+      <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;">
+        <div>
+          <strong style="color:#34d399;">🚀 Быстрый запуск у себя на ПК (всего 2 команды, ничего дополнительно устанавливать не нужно):</strong>
+          <div style="font-family:monospace; font-size:13px; color:#f8fafc; margin-top:4px;">
+            <code id="quickStartCmd">git clone -b arena/0c74c634-esp32 https://github.com/e6six/esp32.git &amp;&amp; cd esp32 &amp;&amp; node server.js</code>
+          </div>
+        </div>
+        <button id="btnCopyQuickStart" class="btn btn-sm">
+          📋 Скопировать команду запуска
+        </button>
+      </div>
+    </section>
+
+    <!-- ШАГ 1: НАСТРОЙКИ WI-FI И ПОГОДЫ -->
+    <section class="card">
+      <div class="section-title">
+        <span class="step-badge">ШАГ 1</span>
+        Введите данные вашего Wi-Fi и выберите город для погоды и точного времени
+      </div>
+
+      <div class="wifi-grid">
+        <div class="form-group">
+          <label for="inputWifiSsid">📶 Имя вашего Wi-Fi (SSID, 2.4 ГГц):</label>
+          <input id="inputWifiSsid" type="text" class="input" placeholder="Например: Home_WiFi" />
+        </div>
+
+        <div class="form-group">
+          <label for="inputWifiPass">🔑 Пароль от Wi-Fi:</label>
+          <input id="inputWifiPass" type="password" class="input" placeholder="Пароль от вашего Wi-Fi" />
+        </div>
+
+        <div class="form-group">
+          <label for="selectCity">🌤️ Ваш город (погода Open-Meteo без ключей + часовой пояс):</label>
+          <select id="selectCity" class="select"></select>
+        </div>
+
+        <div class="form-group">
+          <label for="selectCydVariant">🟨 Ревизия вашей ESP32-2432S028:</label>
+          <select id="selectCydVariant" class="select">
+            <option value="standard">Стандартная (1 разъём Micro-USB, ILI9341)</option>
+            <option value="variant2">Новая ревизия (2 разъёма: Type-C + Micro-USB)</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- ШАГ 2: ЭКРАН ПЛАТЫ И 10 ВАРИАЦИЙ ЧАСОВ / КАЛЕНДАРЕЙ / ПОГОДЫ -->
+    <div class="main-grid">
+      <!-- Слева: Живой экран жёлтой платы ESP32-2432S028 -->
+      <aside class="card" style="position:sticky; top:84px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-weight:800; font-size:15.5px;">🖥️ Экран вашей ESP32-2432S028</div>
+          <span id="previewBadge" style="font-size:12px; color:var(--accent-cyan); font-weight:700;">Вариант 1 из 10</span>
+        </div>
+
+        <div class="cyd-stage">
+          <div class="cyd-pcb">
+            <div class="cyd-hole tl"></div>
+            <div class="cyd-hole tr"></div>
+            <div class="cyd-hole bl"></div>
+            <div class="cyd-hole br"></div>
+            <canvas id="cydCanvas" width="320" height="240" title="Нажимайте на кнопки < PREV и NEXT > внизу экрана!"></canvas>
+          </div>
+
+          <div style="font-size:12px; color:var(--text-muted); margin-top:12px; text-align:center;">
+            👆 Нажимайте на сенсорные кнопки <strong>[&lt; PREV]</strong> и <strong>[NEXT &gt;]</strong> внизу экрана (на реальной плате они тоже переключают все виды часов и календарей от касания пальцем!)
+          </div>
+        </div>
+
+        <button id="btnInstallActivePreview" class="btn btn-install" style="width:100%; margin-top:14px;">
+          ⚡ Установить выбранный вариант на ESP32-2432S028
+        </button>
+      </aside>
+
+      <!-- Справа: 10 готовых вариаций часов, календарей и погоды -->
+      <section class="card">
+        <div class="section-title">
+          <span class="step-badge">ШАГ 2</span>
+          10 Вариаций Часов, Календарей и Погоды — нажмите на любой и установите в 1 клик
+        </div>
+        <p style="font-size:13.5px; color:var(--text-muted); margin-bottom:16px;">
+          Все 10 вариантов работают <strong>полностью автономно по Wi-Fi</strong> (сами берут точное время, дату и погоду для вашего города). При первой установке сайт автоматически заменит вашу прошивку <strong>Bruce 1.11.1</strong>, а дальше смена любого дизайна занимает всего <strong>2 секунды</strong>!
+        </p>
+
+        <div id="widgetsGallery" class="widgets-gallery"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Модальное окно автоматической установки на ESP32-2432S028 -->
+  <div id="installModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="font-size:17px; font-weight:800;">
+          ⚡ Установка на ESP32-2432S028
+        </div>
+        <button id="btnCloseModal" class="btn btn-sm">✕ Закрыть</button>
+      </div>
+
+      <div id="modalStepDesc" style="font-size:13.5px; color:var(--accent-cyan); font-weight:600;">
+        Подготовка к подключению по USB...
+      </div>
+
+      <div class="progress-track">
+        <div id="modalProgressBar" class="progress-fill"></div>
+      </div>
+
+      <div id="modalInstallLog" class="install-log"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; gap:10px; flex-wrap:wrap;">
+        <span style="font-size:12px; color:var(--text-muted);">
+          💡 Если плата не входит в прошивку сама — зажмите кнопку <strong>BOOT</strong> на плате.
+        </span>
+        <button id="btnRetryWithFullFlash" class="btn btn-sm btn-warning">
+          🔄 Полная перепрошивка (поверх Bruce 1.11.1)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

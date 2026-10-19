@@ -1,0 +1,422 @@
+:root {
+  --bg-main: #070b14;
+  --bg-card: #111827;
+  --bg-card-hover: #182235;
+  --bg-input: #0a101d;
+  --border: #24344d;
+  --accent-cyan: #00e5ff;
+  --accent-green: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-pink: #ec4899;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, sans-serif;
+  background: radial-gradient(circle at 20% 0%, #142646 0%, var(--bg-main) 60%);
+  color: var(--text-main);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* Верхняя панель */
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 24px;
+  background: rgba(17, 24, 39, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+  color: #000;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.35);
+}
+
+.brand-title {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.brand-subtitle {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent-amber);
+  box-shadow: 0 0 8px var(--accent-amber);
+}
+
+.status-pill.connected .status-dot {
+  background: var(--accent-green);
+  box-shadow: 0 0 10px var(--accent-green);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+  transition: all 0.16s ease;
+  text-decoration: none;
+}
+
+.btn:hover {
+  border-color: var(--accent-cyan);
+  transform: translateY(-1px);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #00e5ff 0%, #0284c7 100%);
+  border-color: transparent;
+  color: #03101c;
+  box-shadow: 0 4px 16px rgba(0, 229, 255, 0.28);
+}
+
+.btn-install {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: transparent;
+  color: #ffffff;
+  font-size: 14px;
+  padding: 11px 18px;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.32);
+}
+
+.btn-install:hover {
+  box-shadow: 0 6px 22px rgba(16, 185, 129, 0.5);
+  border-color: #34d399;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border-color: transparent;
+  color: #000;
+}
+
+.btn-sm {
+  padding: 7px 12px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+/* Основной контейнер */
+.container {
+  max-width: 1420px;
+  margin: 0 auto;
+  padding: 20px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.card {
+  background: rgba(17, 24, 39, 0.88);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(0, 229, 255, 0.15);
+  color: var(--accent-cyan);
+  margin-right: 8px;
+}
+
+.section-title {
+  font-size: 17px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+/* Поля ввода Wi-Fi и Погоды */
+.wifi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.input, .select, .textarea {
+  padding: 10px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: 13.5px;
+  outline: none;
+}
+
+.input:focus, .select:focus, .textarea:focus {
+  border-color: var(--accent-cyan);
+}
+
+/* Главная сетка: Слева экран CYD, справа Витрина виджетов */
+.main-grid {
+  display: grid;
+  grid-template-columns: 430px 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+@media (max-width: 1060px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Симулятор жёлтой платы ESP32-2432S028 */
+.cyd-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: radial-gradient(circle at center, #1b2842 0%, #090e18 100%);
+  border: 1px solid #2b3d5f;
+  border-radius: 16px;
+  padding: 20px 14px;
+}
+
+.cyd-pcb {
+  padding: 18px 22px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #facc15 0%, #ca8a04 100%);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  position: relative;
+}
+
+.cyd-hole {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #070b14;
+  border: 2px solid #b45309;
+  position: absolute;
+}
+.cyd-hole.tl { top: 6px; left: 6px; }
+.cyd-hole.tr { top: 6px; right: 6px; }
+.cyd-hole.bl { bottom: 6px; left: 6px; }
+.cyd-hole.br { bottom: 6px; right: 6px; }
+
+#cydCanvas {
+  display: block;
+  background: #070b14;
+  border-radius: 6px;
+  border: 3px solid #0f172a;
+  cursor: pointer;
+}
+
+/* Витрина виджетов */
+.widgets-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 16px;
+}
+
+.widget-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  transition: all 0.18s ease;
+  position: relative;
+}
+
+.widget-card:hover {
+  border-color: #38bdf8;
+}
+
+.widget-card.active-widget {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 229, 255, 0.05);
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.14);
+}
+
+.widget-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.widget-icon-lg {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: rgba(0, 229, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.widget-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.widget-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Модальное окно установки и прогресс-бар */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.82);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal-backdrop.open {
+  display: flex;
+}
+
+.modal-box {
+  background: var(--bg-card);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 18px;
+  max-width: 640px;
+  width: 100%;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+}
+
+.progress-track {
+  width: 100%;
+  height: 22px;
+  background: #050811;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 14px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00e5ff 0%, #10b981 100%);
+  transition: width 0.2s ease;
+}
+
+.install-log {
+  background: #05080f;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #34d399;
+  height: 210px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.newtab-notice {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13.5px;
+}
