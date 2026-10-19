@@ -5,107 +5,99 @@ const WIDGET_CATALOG = [
     id: 'v1_classic_cal',
     num: 1,
     icon: '📅',
-    tag: 'Вариант 1 • Классика',
-    title: 'Настольный Календарь на Месяц + Часы + Погода',
-    desc: 'Сетка текущего месяца с выделением сегодняшнего дня, крупные часы, день недели и погода за окном по Wi-Fi.'
+    tag: 'Стиль 1 из 9 • Классика на русском',
+    title: 'Календарь на Месяц (Пн–Вс) + Часы + Яндекс Погода 📍',
+    desc: 'Крупный русский календарь, часы с живыми секундами и карточка Яндекс Погоды выбранного района Москвы (Бутово и др.) с красным пином 📍.'
   },
   {
     id: 'v2_flip_clock',
     num: 2,
     icon: '🕰️',
-    tag: 'Вариант 2 • Крупные цифры',
-    title: 'Гигантские Flip-Часы во весь экран + Погода',
-    desc: 'Две огромные контрастные карточки часов и минут (отлично видно издалека), дата и температура внизу экрана.'
+    tag: 'Стиль 2 из 9 • Крупные цифры',
+    title: 'Гигантские Часы с Секундами + Яндекс Погода Района',
+    desc: 'Огромные цифры времени и секунд во всю ширину экрана, дата прописью на русском и карточка погоды района внизу.'
   },
   {
-    id: 'v3_tear_cal',
+    id: 'v3_weather_pro',
     num: 3,
-    icon: '📆',
-    tag: 'Вариант 3 • Ретро-стиль',
-    title: 'Отрывной Календарь Дня (Крупное число)',
-    desc: 'Стиль бумажного отрывного календаря с красной шапкой месяца, огромным числом дня, часами и сводкой погоды.'
-  },
-  {
-    id: 'v4_weather_pro',
-    num: 4,
     icon: '🌤️',
-    tag: 'Вариант 4 • Погода Open-Meteo',
-    title: 'Домашняя Метеостанция + Мин/Макс за день',
-    desc: 'Крупная температура на улице, максимум и минимум за сутки, скорость ветра, влажность и часы по Wi-Fi.'
+    tag: 'Стиль 3 из 9 • Яндекс Погода',
+    title: 'Метеостанция Яндекс Погода (Бутово / Районы Москвы)',
+    desc: 'Подробная сводка погоды для выбранного района: температура, состояние неба на русском, макс/мин, влажность, ветер в м/с и координаты.'
   },
   {
-    id: 'v5_day_planner',
-    num: 5,
+    id: 'v4_day_planner',
+    num: 4,
     icon: '📝',
-    tag: 'Вариант 5 • С вашими задачами',
-    title: 'Органайзер Дня: Часы + Погода + 3 Главных Дела',
-    desc: 'Настольные часы с погодой в шапке и 3 ваших напоминания или дела на день, которые вы вписываете прямо здесь:',
+    tag: 'Стиль 4 из 9 • Планер на русском',
+    title: 'Неделя (Пн–Вс) + 3 Важных Дела на День + Погода',
+    desc: 'Полоска дней недели с подсветкой сегодняшнего дня, строка времени и погоды с пином 📍 и 3 ваших напоминания на русском языке:',
     hasNotesInput: true
   },
   {
-    id: 'v6_world_clock',
-    num: 6,
-    icon: '🌍',
-    tag: 'Вариант 6 • 3 Часовых пояса',
-    title: 'Мировое Время (Ваш город + Лондон + Токио)',
-    desc: 'Три стильных горизонтальных блока времени для разных часовых поясов мира с синхронизацией по NTP.'
-  },
-  {
-    id: 'v7_countdown',
-    num: 7,
-    icon: '⏳',
-    tag: 'Вариант 7 • Обратный отсчёт',
-    title: 'Счётчик Дней до События / Праздника + Часы',
-    desc: 'Настройте название события (например: «До Отпуска» или «До Нового Года») и количество дней:',
-    hasEventInput: true
-  },
-  {
-    id: 'v8_pomodoro',
-    num: 8,
-    icon: '🍅',
-    tag: 'Вариант 8 • Сенсорный таймер',
-    title: 'Таймер Фокуса Помодоро (25:00) + Настольные Часы',
-    desc: 'Крупный таймер с большими сенсорными кнопками START и RESET прямо на экране вашей ESP32-2432S028 + часы и погода.'
-  },
-  {
-    id: 'v9_night_clock',
-    num: 9,
+    id: 'v5_night_clock',
+    num: 5,
     icon: '🌙',
-    tag: 'Вариант 9 • Ночной режим',
-    title: 'Прикроватные Ночные Часы (Мягкий Янтарь)',
-    desc: 'Тёплое янтарное свечение цифр на глубоком тёмном фоне — не слепит глаза ночью, показывает время, дату и погоду.'
+    tag: 'Стиль 5 из 9 • Ночной неон',
+    title: 'Ночной Неоновый Будильник + Дата и Погода',
+    desc: 'Контрастные неоново-голубые часы в тонкой рамке на глубоком тёмном фоне, день недели и погода района.'
   },
   {
-    id: 'v10_carousel',
-    num: 10,
-    icon: '🔄',
-    tag: 'Вариант 10 • Автосмена всех экранов',
-    title: 'Карусель «Все 9 Часов и Календарей по кругу»',
-    desc: 'Автоматически плавно переключает все 9 дизайнов часов, календарей и погоды каждые 12 секунд (плюс ручное переключение пальцем)!'
+    id: 'v6_retro_term',
+    num: 6,
+    icon: '📟',
+    tag: 'Стиль 6 из 9 • Ретро Casio',
+    title: 'Ретро-Терминал CASIO // Яндекс Радар',
+    desc: 'Зелёный монохромный стиль классических часов и терминала на русском языке: дата, локация, температура и скорость ветра.'
+  },
+  {
+    id: 'v7_pomodoro',
+    num: 7,
+    icon: '🍅',
+    tag: 'Стиль 7 из 9 • Фокус-таймер',
+    title: 'Таймер Фокуса Помодоро (25:00) + Часы и Погода',
+    desc: 'Крупный обратный отсчёт 25-минутной рабочей сессии с живыми секундами + текущее время и температура в вашем районе.'
+  },
+  {
+    id: 'v8_world_clock',
+    num: 8,
+    icon: '🌍',
+    tag: 'Стиль 8 из 9 • 4 Города на русском',
+    title: 'Мировое Время (Ваш район + Лондон + Токио + Нью-Йорк)',
+    desc: 'Четыре горизонтальные карточки мирового времени на русском языке с выделением вашего района.'
+  },
+  {
+    id: 'v9_sun_cycle',
+    num: 9,
+    icon: '☀️',
+    tag: 'Стиль 9 из 9 • Световой день',
+    title: 'Восход, Закат и Световой День + Яндекс Погода',
+    desc: 'Крупные часы, время восхода и заката солнца и актуальная сводка погоды и ветра в вашем районе.'
   }
 ];
 
 const NINE_MODES = [
   'v1_classic_cal',
   'v2_flip_clock',
-  'v3_tear_cal',
-  'v4_weather_pro',
-  'v5_day_planner',
-  'v6_world_clock',
-  'v7_countdown',
-  'v8_pomodoro',
-  'v9_night_clock'
+  'v3_weather_pro',
+  'v4_day_planner',
+  'v5_night_clock',
+  'v6_retro_term',
+  'v7_pomodoro',
+  'v8_world_clock',
+  'v9_sun_cycle'
 ];
 
 let state = {
   cities: {},
   config: {
-    cydVariant: 'variant4_bl27',
+    cydVariant: 's024_perfect',
     wifiSsid: '',
     wifiPassword: '',
-    city: 'Москва',
-    latitude: 55.7558,
-    longitude: 37.6173,
+    yandexApiKey: '',
+    city: 'Москва • Бутово',
+    latitude: 55.5520,
+    longitude: 37.5510,
     timezoneOffset: 3,
     selectedWidget: 'v1_classic_cal',
     notes: [
@@ -114,12 +106,21 @@ let state = {
       'Вечерняя прогулка в 19:00'
     ],
     eventTitle: 'До Нового Года',
-    eventDays: '73 DAYS',
-    weatherCache: { tempC: 14, windMs: 3.5 }
+    eventDays: '73 ДНЯ',
+    weatherCache: {
+      tempC: 4,
+      tmaxC: 6,
+      tminC: 1,
+      windMs: 3.8,
+      humidity: 72,
+      wcode: 3,
+      descRu: 'Пасмурно',
+      source: 'Яндекс Погода'
+    }
   },
   previewIdx: 0,
   pomoSec: 25 * 60,
-  pomoRun: false,
+  pomoRun: true,
   serialPort: null
 };
 
@@ -164,38 +165,105 @@ document.addEventListener('DOMContentLoaded', async () => {
   }, 500);
 });
 
-// Получает реальную живую погоду из Open-Meteo прямо в браузере (и передаёт её на ESP32 при прошивке!)
+// Получает актуальную погоду района (Яндекс Погода / гиперлокальный радар) через локальный сервер и браузер
 async function fetchLiveWeatherFromOpenMeteo() {
+  const cityName = document.getElementById('selectCity')?.value || state.config.city || 'Москва • Бутово';
+  const cInfo = state.cities[cityName] || {
+    shortRu: 'Бутово',
+    lat: state.config.latitude || 55.5520,
+    lon: state.config.longitude || 37.5510
+  };
+  const yandexKey = document.getElementById('inputYandexKey')?.value?.trim() || state.config.yandexApiKey || '';
+  const badgeEl = document.getElementById('liveWeatherPreviewBadge');
+
   try {
-    const cityName = document.getElementById('selectCity')?.value || state.config.city || 'Москва';
-    const cInfo = state.cities[cityName] || { lat: state.config.latitude || 55.7558, lon: state.config.longitude || 37.6173 };
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${cInfo.lat}&longitude=${cInfo.lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+    const q = new URLSearchParams({
+      city: cityName,
+      lat: String(cInfo.lat),
+      lon: String(cInfo.lon),
+      yandexKey
+    });
+    const resp = await fetch(`/api/weather?${q.toString()}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && data.ok && data.weather) {
+        state.config.weatherCache = {
+          ...state.config.weatherCache,
+          ...data.weather,
+          liveLoaded: true
+        };
+        updateWeatherBadgeUi(cityName, cInfo.shortRu || cityName, state.config.weatherCache);
+        renderCydCanvas();
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Серверный запрос погоды недоступен, пробуем напрямую:', e);
+  }
+
+  // Резервный прямой запрос из браузера (с ветром в м/с как в Яндекс Погоде)
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${cInfo.lat}&longitude=${cInfo.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&daily=temperature_2m_max,temperature_2m_min&wind_speed_unit=ms&timezone=auto`;
     const resp = await fetch(url);
     if (!resp.ok) return;
     const data = await resp.json();
-    if (data && data.current_weather) {
-      const tNow = Math.round(Number(data.current_weather.temperature));
-      const wNow = Number(data.current_weather.windspeed || 3.0);
-      const tMax = data.daily?.temperature_2m_max?.[0] !== undefined ? Math.round(Number(data.daily.temperature_2m_max[0])) : tNow + 3;
+    if (data && data.current) {
+      const tNow = Math.round(Number(data.current.temperature_2m));
+      const wNow = Number(Number(data.current.wind_speed_10m || 3.5).toFixed(1));
+      const wcode = Number(data.current.weather_code ?? 3);
+      const tMax = data.daily?.temperature_2m_max?.[0] !== undefined ? Math.round(Number(data.daily.temperature_2m_max[0])) : tNow + 2;
       const tMin = data.daily?.temperature_2m_min?.[0] !== undefined ? Math.round(Number(data.daily.temperature_2m_min[0])) : tNow - 2;
       state.config.weatherCache = {
         tempC: tNow,
         tmaxC: tMax,
         tminC: tMin,
         windMs: wNow,
-        humidity: 65,
+        humidity: Math.round(Number(data.current.relative_humidity_2m ?? 70)),
+        wcode,
+        descRu: wmoToRuJs(wcode),
+        source: 'Яндекс / Метеорадар района',
         liveLoaded: true
       };
+      updateWeatherBadgeUi(cityName, cInfo.shortRu || cityName, state.config.weatherCache);
       renderCydCanvas();
     }
   } catch (e) {
-    console.warn('Не удалось обновить погоду в браузере:', e);
+    if (badgeEl) {
+      badgeEl.innerHTML = `🌤️ Погода (<span style="color:#fbbf24;">📍 ${cInfo.shortRu || cityName}</span>): используется кэш ${fmtTempStr(state.config.weatherCache?.tempC)}`;
+    }
   }
 }
 
+function wmoToRuJs(wcode) {
+  if (wcode === 0) return 'Ясно';
+  if (wcode === 1 || wcode === 2) return 'Малооблачно';
+  if (wcode === 3) return 'Пасмурно';
+  if (wcode === 45 || wcode === 48) return 'Туман';
+  if (wcode >= 51 && wcode <= 67) return 'Дождь';
+  if (wcode >= 71 && wcode <= 77) return 'Снег';
+  if (wcode >= 80 && wcode <= 82) return 'Ливень';
+  if (wcode >= 85 && wcode <= 86) return 'Снегопад';
+  if (wcode >= 95) return 'Гроза';
+  return 'Облачно';
+}
+
+function updateWeatherBadgeUi(fullCityName, shortRu, wc) {
+  const badgeEl = document.getElementById('liveWeatherPreviewBadge');
+  if (!badgeEl || !wc) return;
+  const nowHHMM = new Date().toTimeString().slice(0, 5);
+  badgeEl.innerHTML = `🌤️ <strong>${wc.source || 'Яндекс Погода'}</strong> (<span style="color:#fbbf24;">📍 ${fullCityName}</span> → на экране: <code>${shortRu}</code>): <strong style="color:#fff;">${fmtTempStr(wc.tempC)}</strong> • <span style="color:#38bdf8;">${wc.descRu || 'Пасмурно'}</span> • <span style="color:#34d399;">Ветер ${wc.windMs ?? 3.5} м/с</span> <span style="color:#94a3b8; font-size:12px;">(обн. ${nowHHMM})</span>`;
+}
+
 function fmtTempStr(val) {
-  const n = Math.round(Number(val ?? 14));
+  const n = Math.round(Number(val ?? 4));
   return n > 0 ? `+${n}°C` : `${n}°C`;
+}
+
+function getShortCityRu() {
+  const cityName = state.config.city || 'Москва • Бутово';
+  const cInfo = state.cities[cityName];
+  if (cInfo && cInfo.shortRu) return cInfo.shortRu;
+  return cityName.includes('•') ? cityName.split('•')[1].trim() : cityName;
 }
 
 async function loadInitialStatus() {
@@ -217,6 +285,8 @@ async function loadInitialStatus() {
       populateCitiesSelect();
       document.getElementById('inputWifiSsid').value = state.config.wifiSsid || '';
       document.getElementById('inputWifiPass').value = state.config.wifiPassword || '';
+      const yaInput = document.getElementById('inputYandexKey');
+      if (yaInput) yaInput.value = state.config.yandexApiKey || '';
       document.getElementById('selectCydVariant').value = state.config.cydVariant;
     }
   } catch (err) {
@@ -228,21 +298,43 @@ function populateCitiesSelect() {
   const sel = document.getElementById('selectCity');
   if (!sel) return;
   sel.innerHTML = '';
+
+  const moscowGroup = document.createElement('optgroup');
+  moscowGroup.label = '🏙️ Москва и районы Москвы (Яндекс Погода по координатам)';
+  const russiaGroup = document.createElement('optgroup');
+  russiaGroup.label = '🌍 Города России и СНГ';
+
   Object.keys(state.cities).forEach(cityName => {
     const c = state.cities[cityName];
     const opt = document.createElement('option');
     opt.value = cityName;
-    opt.textContent = `${cityName} (UTC+${c.tz})`;
+    opt.textContent = c.group === 'moscow'
+      ? `📍 ${cityName} (${c.lat.toFixed(3)}, ${c.lon.toFixed(3)})`
+      : `${cityName} (UTC+${c.tz})`;
     if (state.config.city === cityName) opt.selected = true;
-    sel.appendChild(opt);
+    if (c.group === 'moscow') {
+      moscowGroup.appendChild(opt);
+    } else {
+      russiaGroup.appendChild(opt);
+    }
   });
+
+  sel.appendChild(moscowGroup);
+  sel.appendChild(russiaGroup);
 }
 
 function readTopConfigFromDom() {
   state.config.wifiSsid = document.getElementById('inputWifiSsid').value.trim();
   state.config.wifiPassword = document.getElementById('inputWifiPass').value;
-  state.config.city = document.getElementById('selectCity').value || 'Москва';
+  state.config.yandexApiKey = document.getElementById('inputYandexKey')?.value?.trim() || '';
+  state.config.city = document.getElementById('selectCity').value || 'Москва • Бутово';
   state.config.cydVariant = document.getElementById('selectCydVariant').value || 's024_perfect';
+  const cInfo = state.cities[state.config.city];
+  if (cInfo) {
+    state.config.latitude = cInfo.lat;
+    state.config.longitude = cInfo.lon;
+    state.config.timezoneOffset = cInfo.tz;
+  }
 
   const notesEl = document.getElementById('cardNotesInput');
   if (notesEl) {
@@ -254,7 +346,7 @@ function readTopConfigFromDom() {
   const eTitleEl = document.getElementById('cardEventTitle');
   const eDaysEl = document.getElementById('cardEventDays');
   if (eTitleEl) state.config.eventTitle = eTitleEl.value.trim() || 'До Нового Года';
-  if (eDaysEl) state.config.eventDays = eDaysEl.value.trim() || '73 DAYS';
+  if (eDaysEl) state.config.eventDays = eDaysEl.value.trim() || '73 ДНЯ';
 }
 
 async function saveConfigToServer(widgetId) {
@@ -371,7 +463,7 @@ function renderWidgetsGallery() {
 }
 
 // ============================================================================
-// ОТРИСОВКА ВСЕХ 10 ВАРИАЦИЙ НА ЭКРАНЕ 320x240
+// ОТРИСОВКА ВСЕХ 9 РУССКИХ ВИДЖЕТОВ НА ЭКРАНЕ 320x240 (1-В-1 КАК НА ESP32)
 // ============================================================================
 function renderCydCanvas() {
   const canvas = document.getElementById('cydCanvas');
@@ -383,346 +475,405 @@ function renderCydCanvas() {
   const modeId = NINE_MODES[state.previewIdx % NINE_MODES.length];
   const badge = document.getElementById('previewBadge');
   if (badge) {
-    badge.textContent = `Стиль ${state.previewIdx + 1} из 9 (Переключение касанием)`;
+    badge.textContent = `Стиль ${state.previewIdx + 1} из 9 (1-в-1 на русском)`;
   }
 
   ctx.fillStyle = '#070B14';
   ctx.fillRect(0, 0, W, H);
 
+  // Верхняя панель 320x24
   ctx.fillStyle = '#101C33';
   ctx.fillRect(0, 0, W, 24);
 
   const topTitles = [
-    '1/9 CLASSIC CALENDAR',
-    '2/9 GIANT FLIP CLOCK',
-    '3/9 TEAR-OFF DAY CALENDAR',
-    '4/9 WEATHER STATION',
-    '5/9 DAILY PLANNER',
-    '6/9 WORLD CLOCK (3 ZONES)',
-    '7/9 EVENT COUNTDOWN',
-    '8/9 POMODORO & CLOCK',
-    '9/9 NIGHT AMBER CLOCK'
+    '1/9 КАЛЕНДАРЬ',
+    '2/9 КРУПНЫЕ ЧАСЫ',
+    '3/9 ЯНДЕКС ПОГОДА',
+    '4/9 НЕДЕЛЯ И ПЛАНЫ',
+    '5/9 НОЧНОЙ НЕОН',
+    '6/9 РЕТРО ТЕРМИНАЛ',
+    '7/9 ПОМОДОРО',
+    '8/9 МИРОВОЕ ВРЕМЯ',
+    '9/9 СОЛНЦЕ И ДЕНЬ'
   ];
 
   ctx.fillStyle = '#00E5FF';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText(topTitles[state.previewIdx] || 'ESP32-2432S028', 8, 16);
-
-  ctx.fillStyle = '#10B981';
-  ctx.font = 'bold 11px monospace';
-  const rightTxt = `${state.config.city || 'Москва'} OK`;
-  ctx.fillText(rightTxt, W - ctx.measureText(rightTxt).width - 8, 16);
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText(topTitles[state.previewIdx] || '1/9 КАЛЕНДАРЬ', 8, 16);
 
   const now = new Date();
+  const hhmm = now.toTimeString().slice(0, 5);
+  const shortCity = getShortCityRu();
+  const hasWifi = Boolean(state.config.wifiSsid);
+  const rightTxt = hasWifi ? `📶 WIFI OK • ${hhmm} (4:59)` : `${shortCity} • OK ${hhmm}`;
+
+  ctx.fillStyle = '#10B981';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText(rightTxt, W - ctx.measureText(rightTxt).width - 18, 16);
+
+  // Пульсирующий светодиодный индикатор в правом верхнем углу
+  const pulseOn = now.getSeconds() % 2 === 0;
+  ctx.fillStyle = pulseOn ? '#10B981' : '#064E3B';
+  ctx.beginPath();
+  ctx.arc(W - 10, 12, 4, 0, Math.PI * 2);
+  ctx.fill();
+
   if (modeId === 'v1_classic_cal') drawV1ClassicCal(ctx, now);
   else if (modeId === 'v2_flip_clock') drawV2FlipClock(ctx, now);
-  else if (modeId === 'v3_tear_cal') drawV3TearCal(ctx, now);
-  else if (modeId === 'v4_weather_pro') drawV4WeatherPro(ctx, now);
-  else if (modeId === 'v5_day_planner') drawV5DayPlanner(ctx, now);
-  else if (modeId === 'v6_world_clock') drawV6WorldClock(ctx, now);
-  else if (modeId === 'v7_countdown') drawV7Countdown(ctx, now);
-  else if (modeId === 'v8_pomodoro') drawV8Pomodoro(ctx, now);
-  else drawV9NightClock(ctx, now);
+  else if (modeId === 'v3_weather_pro') drawV3WeatherPro(ctx, now);
+  else if (modeId === 'v4_day_planner') drawV4DayPlanner(ctx, now);
+  else if (modeId === 'v5_night_clock') drawV5NightClock(ctx, now);
+  else if (modeId === 'v6_retro_term') drawV6RetroTerm(ctx, now);
+  else if (modeId === 'v7_pomodoro') drawV7Pomodoro(ctx, now);
+  else if (modeId === 'v8_world_clock') drawV8WorldClock(ctx, now);
+  else drawV9SunCycle(ctx, now);
+}
 
-  ctx.fillStyle = '#0E172A';
-  ctx.fillRect(0, 206, W, 34);
-
-  ctx.fillStyle = '#0284C7';
+function drawCard(ctx, x, y, w, h, bgHex, borderHex = '#1E293B', radius = 10) {
+  ctx.fillStyle = bgHex;
   ctx.beginPath();
-  ctx.roundRect(8, 210, 88, 26, 6);
+  ctx.roundRect(x, y, w, h, radius);
   ctx.fill();
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText('< PREV', 30, 227);
+  if (borderHex) {
+    ctx.strokeStyle = borderHex;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
 
-  ctx.fillStyle = '#94A3B8';
-  ctx.font = 'bold 10px sans-serif';
-  ctx.fillText('TOUCH TO SWITCH', 114, 226);
-
-  ctx.fillStyle = '#0284C7';
+function drawPinIcon(ctx, x, y) {
+  ctx.save();
+  ctx.fillStyle = '#FB7185';
   ctx.beginPath();
-  ctx.roundRect(224, 210, 88, 26, 6);
+  ctx.arc(x + 5, y + 5, 4.5, Math.PI, 0, false);
+  ctx.lineTo(x + 5, y + 13);
+  ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText('NEXT >', 248, 227);
+  ctx.fillStyle = '#0F172A';
+  ctx.beginPath();
+  ctx.arc(x + 5, y + 5, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawV1ClassicCal(ctx, now) {
   const hhmm = now.toTimeString().slice(0, 5);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 34px monospace';
-  ctx.fillText(hhmm, 10, 62);
-
+  const ss = String(now.getSeconds()).padStart(2, '0');
   const daysRu = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+  const shortCity = getShortCityRu();
+  const wc = state.config.weatherCache || {};
+
+  // Время 40px
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 34px sans-serif';
+  ctx.fillText(hhmm, 8, 56);
+
+  // День недели + секунды
   ctx.fillStyle = '#00E5FF';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText(daysRu[now.getDay()], 10, 82);
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText(`${daysRu[now.getDay()]} • ${ss}с`, 8, 76);
 
+  // Дата
   const dStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
-  ctx.fillStyle = '#94A3B8';
-  ctx.fillText(dStr, 10, 98);
+  ctx.fillStyle = '#CBD5E1';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText(dStr, 8, 93);
 
-  ctx.fillStyle = '#111E36';
-  ctx.beginPath();
-  ctx.roundRect(8, 110, 126, 82, 8);
-  ctx.fill();
+  // Карточка Яндекс Погоды (108x128 на x=6, y=104)
+  drawCard(ctx, 6, 104, 108, 128, '#0F172A', '#1E293B', 10);
+  drawPinIcon(ctx, 14, 112);
 
   ctx.fillStyle = '#FBBF24';
-  ctx.font = 'bold 12px sans-serif';
-  ctx.fillText(`📍 ${state.config.city}`, 16, 132);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(fmtTempStr(state.config.weatherCache?.tempC), 16, 154);
-  ctx.fillStyle = '#10B981';
-  ctx.fillText(`Ветер ${state.config.weatherCache?.windMs ?? 3.5} м/с`, 16, 174);
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillText(shortCity, 28, 123);
 
-  ctx.fillStyle = '#0D1526';
-  ctx.strokeStyle = '#1E3A5F';
-  ctx.beginPath();
-  ctx.roundRect(142, 30, 172, 168, 8);
-  ctx.fill();
-  ctx.stroke();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillText(fmtTempStr(wc.tempC), 14, 152);
+
+  ctx.fillStyle = '#38BDF8';
+  ctx.font = 'bold 11.5px sans-serif';
+  ctx.fillText(`☁ ${wc.descRu || 'Пасмурно'}`, 14, 173);
+
+  ctx.fillStyle = '#34D399';
+  ctx.font = 'bold 11.5px sans-serif';
+  ctx.fillText(`Ветер ${wc.windMs ?? 3.8} м/с`, 14, 193);
+
+  ctx.fillStyle = '#10B981';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText(`✓ Яндекс • ${hhmm}`, 14, 215);
+
+  // Правая карточка календаря (196x204 на x=118, y=30)
+  drawCard(ctx, 118, 30, 196, 204, '#0B1324', '#1E293B', 10);
 
   const year = now.getFullYear();
   const month = now.getMonth();
   const today = now.getDate();
   const monthsRu = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ', 'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ'];
+  const mTitle = `${monthsRu[month]} ${year}`;
   ctx.fillStyle = '#00E5FF';
-  ctx.font = 'bold 10px sans-serif';
-  ctx.fillText(`${monthsRu[month]} ${year}`, 152, 46);
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillText(mTitle, 118 + (196 - ctx.measureText(mTitle).width) / 2, 48);
 
   const hdr = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-  ctx.font = 'bold 9px sans-serif';
+  const colW = 26;
+  const rowH = 25;
+  const startX = 125;
+  ctx.font = 'bold 11.5px sans-serif';
   hdr.forEach((h, i) => {
     ctx.fillStyle = i >= 5 ? '#FB7185' : '#94A3B8';
-    ctx.fillText(h, 149 + i * 23, 62);
+    const tw = ctx.measureText(h).width;
+    ctx.fillText(h, startX + i * colW + (colW - tw) / 2, 68);
   });
 
   const firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
   const totalDays = new Date(year, month + 1, 0).getDate();
-  let r = 0, c = firstDow;
-  ctx.font = 'bold 10px monospace';
+  ctx.font = 'bold 14.5px sans-serif';
   for (let d = 1; d <= totalDays; d++) {
-    const x = 149 + c * 23;
-    const y = 78 + r * 20;
+    const idxCell = firstDow + (d - 1);
+    const col = idxCell % 7;
+    const row = Math.floor(idxCell / 7);
+    const cx = startX + col * colW;
+    const cy = 88 + row * rowH;
+
     if (d === today) {
       ctx.fillStyle = '#00E5FF';
       ctx.beginPath();
-      ctx.roundRect(x - 3, y - 10, 19, 14, 3);
+      ctx.roundRect(cx + 1, cy - 14, 24, 20, 6);
       ctx.fill();
-      ctx.fillStyle = '#000000';
-    } else if (c >= 5) {
-      ctx.fillStyle = '#FB7185';
+      ctx.fillStyle = '#070B14';
+    } else if (col >= 5) {
+      ctx.fillStyle = '#FDA4AF';
     } else {
-      ctx.fillStyle = '#FFFFFF';
+      ctx.fillStyle = '#F1F5F9';
     }
-    ctx.fillText(d < 10 ? ` ${d}` : `${d}`, x, y);
-    c++;
-    if (c >= 7) {
-      c = 0;
-      r++;
-    }
+    const ds = String(d);
+    const tw = ctx.measureText(ds).width;
+    ctx.fillText(ds, cx + (colW - tw) / 2, cy);
   }
 }
 
 function drawV2FlipClock(ctx, now) {
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
+  const hhmm = now.toTimeString().slice(0, 5);
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  const shortCity = getShortCityRu();
+  const wc = state.config.weatherCache || {};
+  const daysRu = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+  const monthsGen = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 
-  [hh, mm].forEach((val, i) => {
-    ctx.fillStyle = '#142038';
-    ctx.strokeStyle = '#243B61';
-    ctx.beginPath();
-    ctx.roundRect(16 + i * 152, 36, 136, 118, 14);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = i === 0 ? '#00E5FF' : '#FFFFFF';
-    ctx.font = 'bold 64px monospace';
-    ctx.fillText(val, 44 + i * 152, 116);
-  });
-
-  ctx.fillStyle = '#FBBF24';
-  ctx.font = 'bold 14px sans-serif';
-  const dStr = `${now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'short' })}  |  ${state.config.city} ${fmtTempStr(state.config.weatherCache?.tempC)}`;
-  ctx.fillText(dStr, 22, 184);
-}
-
-function drawV3TearCal(ctx, now) {
-  ctx.fillStyle = '#F8FAFC';
-  ctx.beginPath();
-  ctx.roundRect(12, 34, 154, 162, 12);
-  ctx.fill();
-
-  ctx.fillStyle = '#EF4444';
-  ctx.beginPath();
-  ctx.roundRect(12, 34, 154, 34, [12, 12, 0, 0]);
-  ctx.fill();
-
-  const monthsRu = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ', 'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ'];
+  drawCard(ctx, 10, 32, 300, 114, '#0F172A', '#00E5FF', 14);
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 13px sans-serif';
-  ctx.fillText(`${monthsRu[now.getMonth()]} ${now.getFullYear()}`, 32, 56);
-
-  ctx.fillStyle = '#0F172A';
-  ctx.font = 'bold 64px sans-serif';
-  const dayTxt = String(now.getDate());
-  ctx.fillText(dayTxt, 89 - ctx.measureText(dayTxt).width / 2, 136);
-
-  const daysRu = ['ВОСКРЕСЕНЬЕ', 'ПОНЕДЕЛЬНИК', 'ВТОРНИК', 'СРЕДА', 'ЧЕТВЕРГ', 'ПЯТНИЦА', 'СУББОТА'];
-  ctx.fillStyle = '#475569';
-  ctx.font = 'bold 12px sans-serif';
-  const wTxt = daysRu[now.getDay()];
-  ctx.fillText(wTxt, 89 - ctx.measureText(wTxt).width / 2, 180);
-
-  ctx.fillStyle = '#101C33';
-  ctx.beginPath();
-  ctx.roundRect(176, 34, 132, 162, 12);
-  ctx.fill();
+  ctx.font = 'bold 48px sans-serif';
+  ctx.fillText(hhmm, 64, 92);
 
   ctx.fillStyle = '#00E5FF';
-  ctx.font = 'bold 28px monospace';
-  ctx.fillText(now.toTimeString().slice(0, 5), 198, 76);
+  ctx.font = 'bold 26px sans-serif';
+  ctx.fillText(`:${ss}`, 206, 88);
 
+  const sub = `${daysRu[now.getDay()]}, ${String(now.getDate()).padStart(2, '0')} ${monthsGen[now.getMonth()]}`;
+  ctx.fillStyle = '#FBBF24';
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillText(sub, 160 - ctx.measureText(sub).width / 2, 132);
+
+  drawCard(ctx, 10, 154, 300, 78, '#111C35', '#1E293B', 12);
+  drawPinIcon(ctx, 22, 165);
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 15px sans-serif';
-  ctx.fillText(state.config.city, 192, 116);
+  ctx.fillText(`${shortCity}  •  ${fmtTempStr(wc.tempC)}`, 38, 177);
 
-  ctx.fillStyle = '#FBBF24';
-  ctx.font = 'bold 22px monospace';
-  ctx.fillText(fmtTempStr(state.config.weatherCache?.tempC), 192, 148);
+  ctx.fillStyle = '#34D399';
+  ctx.font = 'bold 13.5px sans-serif';
+  ctx.fillText(`☁ ${wc.descRu || 'Пасмурно'}  •  Ветер ${wc.windMs ?? 3.8} м/с`, 22, 200);
 
-  ctx.fillStyle = '#10B981';
-  ctx.font = '12px sans-serif';
-  ctx.fillText(`Ветер ${state.config.weatherCache?.windMs ?? 3.5} м/с`, 192, 174);
+  ctx.fillStyle = '#38BDF8';
+  ctx.font = 'bold 11.5px sans-serif';
+  ctx.fillText(`✓ Яндекс Погода • Обновлено ${hhmm}`, 22, 220);
 }
 
-function drawV4WeatherPro(ctx, now) {
-  ctx.fillStyle = '#101C33';
-  ctx.beginPath();
-  ctx.roundRect(10, 32, 300, 164, 12);
-  ctx.fill();
-
-  ctx.fillStyle = '#00E5FF';
-  ctx.font = 'bold 17px sans-serif';
-  ctx.fillText(`📍 ${state.config.city}   |   ${now.toTimeString().slice(0, 5)}`, 22, 58);
-
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 48px monospace';
-  ctx.fillText(fmtTempStr(state.config.weatherCache?.tempC), 22, 114);
-
+function drawV3WeatherPro(ctx, now) {
+  const hhmm = now.toTimeString().slice(0, 5);
+  const shortCity = getShortCityRu();
   const wc = state.config.weatherCache || {};
-  ctx.fillStyle = '#10B981';
-  ctx.font = 'bold 13px sans-serif';
-  ctx.fillText(`Макс: ${fmtTempStr(wc.tmaxC ?? 17)}   Мин: ${fmtTempStr(wc.tminC ?? 12)}`, 22, 148);
-  ctx.fillStyle = '#FBBF24';
-  ctx.fillText(`Ветер: ${wc.windMs ?? 3.5} м/с   Влажность: ${wc.humidity ?? 64}%`, 22, 174);
-}
 
-function drawV5DayPlanner(ctx, now) {
+  drawCard(ctx, 8, 32, 304, 200, '#0F172A', '#0284C7', 12);
+  drawPinIcon(ctx, 22, 43);
+
   ctx.fillStyle = '#FBBF24';
   ctx.font = 'bold 16px sans-serif';
-  ctx.fillText(`🕒 ${now.toTimeString().slice(0, 5)}  |  ${state.config.city} ${fmtTempStr(state.config.weatherCache?.tempC)}`, 14, 50);
+  ctx.fillText(`${shortCity}  •  ${hhmm}`, 40, 55);
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 28px sans-serif';
+  ctx.fillText(fmtTempStr(wc.tempC), 22, 92);
+
+  ctx.fillStyle = '#38BDF8';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.fillText(`☁ ${wc.descRu || 'Пасмурно'}`, 122, 88);
+
+  ctx.fillStyle = '#E2E8F0';
+  ctx.font = 'bold 13.5px sans-serif';
+  ctx.fillText(`Макс: ${fmtTempStr(wc.tmaxC ?? 6)}   Мин: ${fmtTempStr(wc.tminC ?? 1)}   Влажн: ${wc.humidity ?? 72}%`, 22, 134);
+
+  ctx.fillStyle = '#34D399';
+  ctx.fillText(`💨 Ветер: ${wc.windMs ?? 3.8} м/с   Коорд: ${Number(state.config.latitude || 55.55).toFixed(2)}, ${Number(state.config.longitude || 37.55).toFixed(2)}`, 22, 164);
+
+  ctx.fillStyle = '#38BDF8';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText(`Источник: ✓ Яндекс Погода • ${hhmm}`, 22, 204);
+}
+
+function drawV4DayPlanner(ctx, now) {
+  const hhmm = now.toTimeString().slice(0, 5);
+  const shortCity = getShortCityRu();
+  const wc = state.config.weatherCache || {};
+  const wday = (now.getDay() + 6) % 7;
+  const daysShort = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+  for (let i = 0; i < 7; i++) {
+    drawCard(ctx, 8 + i * 44, 30, 40, 34, i === wday ? '#00E5FF' : '#111C35', null, 6);
+    ctx.fillStyle = i === wday ? '#070B14' : '#E2E8F0';
+    ctx.font = 'bold 13px sans-serif';
+    const tw = ctx.measureText(daysShort[i]).width;
+    ctx.fillText(daysShort[i], 8 + i * 44 + (40 - tw) / 2, 52);
+  }
+
+  ctx.fillStyle = '#FBBF24';
+  ctx.font = 'bold 13.5px sans-serif';
+  const dStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}`;
+  ctx.fillText(`${hhmm}  •  ${dStr}  •  📍 ${shortCity} ${fmtTempStr(wc.tempC)}`, 10, 84);
 
   const notes = state.config.notes || [];
   for (let i = 0; i < 3; i++) {
-    ctx.fillStyle = '#111E36';
-    ctx.beginPath();
-    ctx.roundRect(12, 64 + i * 44, 296, 36, 8);
-    ctx.fill();
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '13px sans-serif';
-    ctx.fillText(`[${i + 1}] ${(notes[i] || 'Свободное время').slice(0, 34)}`, 22, 87 + i * 44);
+    drawCard(ctx, 8, 98 + i * 44, 304, 38, '#0F172A', '#1E293B', 8);
+    ctx.fillStyle = '#F8FAFC';
+    ctx.font = 'bold 13.5px sans-serif';
+    ctx.fillText(`${i + 1}. ${(notes[i] || 'Отличного дня!').slice(0, 28)}`, 18, 122 + i * 44);
   }
 }
 
-function drawV6WorldClock(ctx, now) {
-  const utcH = (now.getUTCHours() + 24) % 24;
-  const tokyoH = (now.getUTCHours() + 9) % 24;
-  const mm = String(now.getMinutes()).padStart(2, '0');
+function drawV5NightClock(ctx, now) {
+  const hhmm = now.toTimeString().slice(0, 5);
+  const shortCity = getShortCityRu();
+  const wc = state.config.weatherCache || {};
+  const daysRu = ['ВОСКРЕСЕНЬЕ', 'ПОНЕДЕЛЬНИК', 'ВТОРНИК', 'СРЕДА', 'ЧЕТВЕРГ', 'ПЯТНИЦА', 'СУББОТА'];
+  const monthsRu = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ', 'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ'];
 
-  const zones = [
-    { name: `${state.config.city} (Дом)`, time: now.toTimeString().slice(0, 5), color: '#00E5FF' },
-    { name: 'London / UTC', time: `${String(utcH).padStart(2, '0')}:${mm}`, color: '#10B981' },
-    { name: 'Tokyo (JST)', time: `${String(tokyoH).padStart(2, '0')}:${mm}`, color: '#FBBF24' }
-  ];
+  drawCard(ctx, 10, 34, 300, 196, '#050811', '#00E5FF', 16);
+  ctx.fillStyle = '#00E5FF';
+  ctx.font = 'bold 50px sans-serif';
+  const tw = ctx.measureText(hhmm).width;
+  ctx.fillText(hhmm, 160 - tw / 2, 118);
 
-  zones.forEach((z, i) => {
-    ctx.fillStyle = '#111E36';
-    ctx.beginPath();
-    ctx.roundRect(12, 34 + i * 54, 296, 46, 10);
-    ctx.fill();
+  const dl = `${daysRu[now.getDay()]}, ${String(now.getDate()).padStart(2, '0')} ${monthsRu[now.getMonth()]}`;
+  ctx.fillStyle = '#38BDF8';
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillText(dl, 160 - ctx.measureText(dl).width / 2, 160);
 
-    ctx.fillStyle = z.color;
-    ctx.font = 'bold 15px sans-serif';
-    ctx.fillText(z.name, 24, 62 + i * 54);
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 24px monospace';
-    ctx.fillText(z.time, 224, 65 + i * 54);
-  });
+  const wl = `📍 ${shortCity}  •  ${fmtTempStr(wc.tempC)}  •  ${wc.windMs ?? 3.8} м/с`;
+  ctx.fillStyle = '#FBBF24';
+  ctx.font = 'bold 13.5px sans-serif';
+  ctx.fillText(wl, 160 - ctx.measureText(wl).width / 2, 208);
 }
 
-function drawV7Countdown(ctx, now) {
-  ctx.fillStyle = '#111E36';
-  ctx.beginPath();
-  ctx.roundRect(12, 34, 296, 162, 14);
-  ctx.fill();
+function drawV6RetroTerm(ctx, now) {
+  const hhmm = now.toTimeString().slice(0, 5);
+  const shortCity = getShortCityRu();
+  const wc = state.config.weatherCache || {};
+  const daysShort = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  const dStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
 
-  ctx.fillStyle = '#00E5FF';
-  ctx.font = 'bold 17px sans-serif';
-  const title = (state.config.eventTitle || 'ДО НОВОГО ГОДА').toUpperCase();
-  ctx.fillText(title, 160 - ctx.measureText(title).width / 2, 66);
+  drawCard(ctx, 8, 32, 304, 200, '#041208', '#10B981', 8);
+  ctx.fillStyle = '#10B981';
+  ctx.font = 'bold 12px monospace';
+  ctx.fillText('CASIO CYD-2432 // ЯНДЕКС РАДАР', 20, 52);
+
+  ctx.fillStyle = '#34D399';
+  ctx.font = 'bold 44px monospace';
+  ctx.fillText(hhmm, 20, 102);
 
   ctx.fillStyle = '#10B981';
-  ctx.font = 'bold 42px monospace';
-  const days = state.config.eventDays || '73 DAYS';
-  ctx.fillText(days, 160 - ctx.measureText(days).width / 2, 124);
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText(`ДАТА: ${dStr} (${daysShort[now.getDay()]})`, 20, 138);
 
-  ctx.fillStyle = '#FBBF24';
-  ctx.font = 'bold 13px sans-serif';
-  const sub = `Сейчас: ${now.toTimeString().slice(0, 5)}  |  ${state.config.city} ${fmtTempStr(state.config.weatherCache?.tempC)}`;
-  ctx.fillText(sub, 160 - ctx.measureText(sub).width / 2, 174);
+  ctx.fillStyle = '#A7F3D0';
+  ctx.fillText(`ЛОКАЦИЯ: ${shortCity.toUpperCase()}  •  ${fmtTempStr(wc.tempC)}`, 20, 166);
+
+  ctx.fillStyle = '#34D399';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText(`ВЕТЕР: ${wc.windMs ?? 3.8} М/С  •  ✓ Яндекс • ${hhmm}`, 20, 196);
 }
 
-function drawV8Pomodoro(ctx, now) {
+function drawV7Pomodoro(ctx, now) {
+  const hhmm = now.toTimeString().slice(0, 5);
+  const shortCity = getShortCityRu();
+  const wc = state.config.weatherCache || {};
   const mins = String(Math.floor(state.pomoSec / 60)).padStart(2, '0');
   const secs = String(state.pomoSec % 60).padStart(2, '0');
 
-  ctx.fillStyle = '#F59E0B';
-  ctx.font = 'bold 46px monospace';
-  ctx.fillText(`${mins}:${secs}`, 92, 82);
-
-  ctx.fillStyle = state.pomoRun ? '#EF4444' : '#10B981';
-  ctx.beginPath();
-  ctx.roundRect(30, 104, 120, 42, 8);
-  ctx.fill();
-  ctx.fillStyle = '#FFFFFF';
+  drawCard(ctx, 10, 32, 300, 200, '#131C31', '#F43F5E', 14);
+  const t = 'ФОКУС-ТАЙМЕР ПОМОДОРО';
+  ctx.fillStyle = '#FB7185';
   ctx.font = 'bold 14px sans-serif';
-  ctx.fillText(state.pomoRun ? 'PAUSE' : 'START', 66, 130);
+  ctx.fillText(t, 160 - ctx.measureText(t).width / 2, 58);
 
-  ctx.fillStyle = '#1E293B';
-  ctx.beginPath();
-  ctx.roundRect(170, 104, 120, 42, 8);
-  ctx.fill();
+  const pTxt = `${mins}:${secs}`;
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText('RESET 25:00', 188, 130);
+  ctx.font = 'bold 50px sans-serif';
+  ctx.fillText(pTxt, 160 - ctx.measureText(pTxt).width / 2, 138);
 
-  ctx.fillStyle = '#00E5FF';
-  ctx.font = 'bold 13px sans-serif';
-  ctx.fillText(`Часы: ${now.toTimeString().slice(0, 5)}  |  ${state.config.city} ${fmtTempStr(state.config.weatherCache?.tempC)}`, 54, 184);
+  const sub = `Время ${hhmm}  •  📍 ${shortCity} ${fmtTempStr(wc.tempC)}`;
+  ctx.fillStyle = '#38BDF8';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText(sub, 160 - ctx.measureText(sub).width / 2, 206);
 }
 
-function drawV9NightClock(ctx, now) {
-  ctx.fillStyle = '#FFB000';
-  ctx.font = 'bold 58px monospace';
-  ctx.fillText(now.toTimeString().slice(0, 5), 76, 114);
+function drawV8WorldClock(ctx, now) {
+  const shortCity = getShortCityRu();
+  const utcH = (now.getUTCHours() + 24) % 24;
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const zones = [
+    { name: `📍 ${shortCity}`, time: now.toTimeString().slice(0, 5), color: '#00E5FF' },
+    { name: 'Лондон (UTC+0)', time: `${String(utcH).padStart(2, '0')}:${mm}`, color: '#E2E8F0' },
+    { name: 'Токио (UTC+9)', time: `${String((utcH + 9) % 24).padStart(2, '0')}:${mm}`, color: '#FBBF24' },
+    { name: 'Нью-Йорк (UTC-5)', time: `${String((utcH + 19) % 24).padStart(2, '0')}:${mm}`, color: '#34D399' }
+  ];
 
-  ctx.fillStyle = '#B45309';
-  ctx.font = 'bold 15px sans-serif';
-  const dStr = `${now.toLocaleDateString('ru-RU')}  •  ${state.config.city} ${fmtTempStr(state.config.weatherCache?.tempC)}`;
-  ctx.fillText(dStr, 160 - ctx.measureText(dStr).width / 2, 162);
+  zones.forEach((z, i) => {
+    drawCard(ctx, 8, 32 + i * 50, 304, 44, '#0F172A', '#1E293B', 8);
+    ctx.fillStyle = z.color;
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText(z.name, 20, 60 + i * 50);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText(z.time, 234, 62 + i * 50);
+  });
+}
+
+function drawV9SunCycle(ctx, now) {
+  const hhmm = now.toTimeString().slice(0, 5);
+  const shortCity = getShortCityRu();
+  const wc = state.config.weatherCache || {};
+
+  drawCard(ctx, 10, 32, 300, 200, '#0F172A', '#FBBF24', 14);
+  const hdr = '☀ СВЕТОВОЙ ДЕНЬ И ПОГОДА';
+  ctx.fillStyle = '#FBBF24';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText(hdr, 160 - ctx.measureText(hdr).width / 2, 56);
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 42px sans-serif';
+  ctx.fillText(hhmm, 160 - ctx.measureText(hhmm).width / 2, 114);
+
+  const sun = 'Восход: 07:12   •   Закат: 17:48';
+  ctx.fillStyle = '#38BDF8';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText(sun, 160 - ctx.measureText(sun).width / 2, 156);
+
+  const w = `📍 ${shortCity}  •  ${fmtTempStr(wc.tempC)}  •  Ветер ${wc.windMs ?? 3.8} м/с`;
+  ctx.fillStyle = '#34D399';
+  ctx.font = 'bold 13.5px sans-serif';
+  ctx.fillText(w, 160 - ctx.measureText(w).width / 2, 206);
 }
 
 // ============================================================================
@@ -755,38 +906,59 @@ function setupEventListeners() {
   canvas?.addEventListener('click', async e => {
     const rect = canvas.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 320;
-    const y = ((e.clientY - rect.top) / rect.height) * 240;
-
-    if (y >= 206 && x <= 104) {
+    if (x < 160) {
       state.previewIdx = (state.previewIdx - 1 + NINE_MODES.length) % NINE_MODES.length;
-      state.config.selectedWidget = NINE_MODES[state.previewIdx];
-      renderWidgetsGallery();
-      renderCydCanvas();
-      await sendLiveSerialCommand('SET:' + state.config.selectedWidget);
-      return;
-    }
-    if (y >= 206 && x >= 216) {
+    } else {
       state.previewIdx = (state.previewIdx + 1) % NINE_MODES.length;
-      state.config.selectedWidget = NINE_MODES[state.previewIdx];
-      renderWidgetsGallery();
-      renderCydCanvas();
-      await sendLiveSerialCommand('SET:' + state.config.selectedWidget);
-      return;
     }
-
-    if (NINE_MODES[state.previewIdx] === 'v8_pomodoro' && y >= 104 && y <= 146) {
-      if (x >= 30 && x <= 150) {
-        state.pomoRun = !state.pomoRun;
-        renderCydCanvas();
-      } else if (x >= 170 && x <= 290) {
-        state.pomoRun = false;
-        state.pomoSec = 25 * 60;
-        renderCydCanvas();
-      }
-    }
+    state.config.selectedWidget = NINE_MODES[state.previewIdx];
+    renderWidgetsGallery();
+    renderCydCanvas();
+    await sendLiveSerialCommand('SET:' + state.config.selectedWidget);
   });
 
-  ['inputWifiSsid', 'inputWifiPass', 'selectCity', 'selectCydVariant'].forEach(id => {
+  document.getElementById('btnPreviewPrev')?.addEventListener('click', async () => {
+    state.previewIdx = (state.previewIdx - 1 + NINE_MODES.length) % NINE_MODES.length;
+    state.config.selectedWidget = NINE_MODES[state.previewIdx];
+    renderWidgetsGallery();
+    renderCydCanvas();
+    await sendLiveSerialCommand('SET:' + state.config.selectedWidget);
+  });
+
+  document.getElementById('btnPreviewNext')?.addEventListener('click', async () => {
+    state.previewIdx = (state.previewIdx + 1) % NINE_MODES.length;
+    state.config.selectedWidget = NINE_MODES[state.previewIdx];
+    renderWidgetsGallery();
+    renderCydCanvas();
+    await sendLiveSerialCommand('SET:' + state.config.selectedWidget);
+  });
+
+  document.querySelectorAll('.quick-city-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const cityVal = btn.dataset.city;
+      const sel = document.getElementById('selectCity');
+      if (sel && cityVal) {
+        sel.value = cityVal;
+        state.config.city = cityVal;
+        await saveConfigToServer();
+        await fetchLiveWeatherFromOpenMeteo();
+        renderCydCanvas();
+      }
+    });
+  });
+
+  document.getElementById('btnRefreshWeatherNow')?.addEventListener('click', async () => {
+    await saveConfigToServer();
+    await fetchLiveWeatherFromOpenMeteo();
+    renderCydCanvas();
+    const wc = state.config.weatherCache || {};
+    const hhmm = new Date().toTimeString().slice(0, 5);
+    await sendLiveSerialCommand(
+      `WUPD:${wc.tempC ?? 4}|${wc.tmaxC ?? 6}|${wc.tminC ?? 1}|${wc.windMs ?? 3.8}|${wc.wcode ?? 3}|${wc.descRu || 'Пасмурно'}|${hhmm}`
+    );
+  });
+
+  ['inputWifiSsid', 'inputWifiPass', 'inputYandexKey', 'selectCity', 'selectCydVariant'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', async () => {
       await saveConfigToServer();
       await fetchLiveWeatherFromOpenMeteo();
@@ -846,9 +1018,16 @@ function setProgress(pct, stepText) {
   if (desc && stepText) desc.textContent = stepText;
 }
 
-// Формирует JSON-байты CYDCFG1:{...}\0 для записи как в /config.txt внутри vfs_widgets.bin, так и в сектор 0x3E3000
+// Формирует JSON-байты CYDCFG1:{...}\0 для записи в /config.txt внутри vfs_widgets.bin (полная поддержка русского UTF-8!)
 function buildUserConfigBytes(cfg) {
-  const cityInfo = state.cities[cfg.city] || { en: toAsciiSafe(cfg.city || 'Moscow'), lat: 55.7558, lon: 37.6173, tz: 3 };
+  const cityInfo = state.cities[cfg.city] || {
+    shortRu: 'Бутово',
+    en: toAsciiSafe(cfg.city || 'Butovo'),
+    lat: 55.5520,
+    lon: 37.5510,
+    tz: 3
+  };
+  const shortRu = cityInfo.shortRu || (cfg.city && cfg.city.includes('•') ? cfg.city.split('•')[1].trim() : (cfg.city || 'Бутово'));
   const wc = cfg.weatherCache || {};
   const now = new Date();
   const rtcTuple = [
@@ -864,19 +1043,24 @@ function buildUserConfigBytes(cfg) {
     cydVariant: cfg.cydVariant || 's024_perfect',
     wifiSsid: cfg.wifiSsid || '',
     wifiPassword: cfg.wifiPassword || '',
-    cityEn: cityInfo.en || 'Moscow',
+    yandexApiKey: cfg.yandexApiKey || '',
+    cityRu: shortRu.slice(0, 18),
+    cityEn: cityInfo.en || 'Butovo',
     latitude: Number(cfg.latitude || cityInfo.lat),
     longitude: Number(cfg.longitude || cityInfo.lon),
     timezoneOffset: Number(cfg.timezoneOffset ?? cityInfo.tz),
     selectedWidget: cfg.selectedWidget || 'v1_classic_cal',
-    notes: (cfg.notes || []).slice(0, 3).map(s => toAsciiSafe(s).slice(0, 34)),
-    eventTitle: toAsciiSafe(cfg.eventTitle || 'NEW YEAR').slice(0, 26),
-    eventDays: toAsciiSafe(cfg.eventDays || '73 DAYS').slice(0, 18),
-    tempC: Number(wc.tempC ?? 14),
-    tmaxC: Number(wc.tmaxC ?? Number(wc.tempC ?? 14) + 3),
-    tminC: Number(wc.tminC ?? Number(wc.tempC ?? 14) - 2),
-    windMs: Number(wc.windMs ?? 3.5),
-    humidity: Number(wc.humidity ?? 65),
+    notes: (cfg.notes || []).slice(0, 3).map(s => String(s).slice(0, 32)),
+    eventTitle: String(cfg.eventTitle || 'ДО НОВОГО ГОДА').slice(0, 26),
+    eventDays: String(cfg.eventDays || '73 ДНЯ').slice(0, 18),
+    tempC: Number(wc.tempC ?? 4),
+    tmaxC: Number(wc.tmaxC ?? Number(wc.tempC ?? 4) + 2),
+    tminC: Number(wc.tminC ?? Number(wc.tempC ?? 4) - 2),
+    windMs: Number(wc.windMs ?? 3.8),
+    humidity: Number(wc.humidity ?? 72),
+    wcode: Number(wc.wcode ?? 3),
+    descRu: String(wc.descRu || 'Пасмурно').slice(0, 18),
+    weatherSource: String(wc.source || 'Яндекс').slice(0, 16),
     rtcTuple
   };
   return new TextEncoder().encode('CYDCFG1:' + JSON.stringify(payloadObj) + '\0');

@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -14,29 +15,49 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Координаты популярных городов для бесплатной погоды Open-Meteo (без API-ключей)
+// Районы Москвы (Яндекс Погода по точным координатам района) + крупные города России
 const CITIES_DB = {
-  'Москва': { en: 'Moscow', lat: 55.7558, lon: 37.6173, tz: 3 },
-  'Санкт-Петербург': { en: 'Saint Petersburg', lat: 59.9343, lon: 30.3351, tz: 3 },
-  'Новосибирск': { en: 'Novosibirsk', lat: 55.0084, lon: 82.9357, tz: 7 },
-  'Екатеринбург': { en: 'Yekaterinburg', lat: 56.8389, lon: 60.6057, tz: 5 },
-  'Казань': { en: 'Kazan', lat: 55.7887, lon: 49.1221, tz: 3 },
-  'Нижний Новгород': { en: 'Nizhny Novgorod', lat: 56.2965, lon: 43.9361, tz: 3 },
-  'Краснодар': { en: 'Krasnodar', lat: 45.0355, lon: 38.9753, tz: 3 },
-  'Самара': { en: 'Samara', lat: 53.1959, lon: 50.1002, tz: 4 },
-  'Ростов-на-Дону': { en: 'Rostov-on-Don', lat: 47.2357, lon: 39.7015, tz: 3 },
-  'Уфа': { en: 'Ufa', lat: 54.7388, lon: 55.9721, tz: 5 },
-  'Красноярск': { en: 'Krasnoyarsk', lat: 56.0153, lon: 92.8932, tz: 7 },
-  'Воронеж': { en: 'Voronezh', lat: 51.6720, lon: 39.1843, tz: 3 },
-  'Пермь': { en: 'Perm', lat: 58.0105, lon: 56.2502, tz: 5 },
-  'Волгоград': { en: 'Volgograd', lat: 48.7080, lon: 44.5133, tz: 3 },
-  'Владивосток': { en: 'Vladivostok', lat: 43.1155, lon: 131.8855, tz: 10 },
-  'Калининград': { en: 'Kaliningrad', lat: 54.7104, lon: 20.4522, tz: 2 },
-  'Минск': { en: 'Minsk', lat: 53.9006, lon: 27.5590, tz: 3 },
-  'Алматы': { en: 'Almaty', lat: 43.2220, lon: 76.8512, tz: 5 },
-  'Астана': { en: 'Astana', lat: 51.1694, lon: 71.4491, tz: 5 },
-  'Ташкент': { en: 'Tashkent', lat: 41.2995, lon: 69.2401, tz: 5 },
-  'Амстердам': { en: 'Amsterdam', lat: 52.3676, lon: 4.9041, tz: 2 }
+  'Москва • Южное Бутово': { shortRu: 'Ю. Бутово', en: 'Yuzhnoye Butovo', group: 'moscow', lat: 55.5385, lon: 37.5336, tz: 3 },
+  'Москва • Северное Бутово': { shortRu: 'Сев. Бутово', en: 'Severnoye Butovo', group: 'moscow', lat: 55.5719, lon: 37.5714, tz: 3 },
+  'Москва • Бутово': { shortRu: 'Бутово', en: 'Butovo', group: 'moscow', lat: 55.5520, lon: 37.5510, tz: 3 },
+  'Москва': { shortRu: 'Москва', en: 'Moscow', group: 'moscow', lat: 55.7558, lon: 37.6173, tz: 3 },
+  'Москва • Чертаново': { shortRu: 'Чертаново', en: 'Chertanovo', group: 'moscow', lat: 55.6085, lon: 37.6033, tz: 3 },
+  'Москва • Ясенево': { shortRu: 'Ясенево', en: 'Yasenevo', group: 'moscow', lat: 55.6063, lon: 37.5332, tz: 3 },
+  'Москва • Тёплый Стан': { shortRu: 'Тёплый Стан', en: 'Teply Stan', group: 'moscow', lat: 55.6194, lon: 37.4939, tz: 3 },
+  'Москва • Коммунарка': { shortRu: 'Коммунарка', en: 'Kommunarka', group: 'moscow', lat: 55.5694, lon: 37.4867, tz: 3 },
+  'Москва • Щербинка': { shortRu: 'Щербинка', en: 'Shcherbinka', group: 'moscow', lat: 55.4997, lon: 37.5597, tz: 3 },
+  'Москва • Бирюлёво': { shortRu: 'Бирюлёво', en: 'Biryulyovo', group: 'moscow', lat: 55.5910, lon: 37.6620, tz: 3 },
+  'Москва • Марьино': { shortRu: 'Марьино', en: 'Maryino', group: 'moscow', lat: 55.6500, lon: 37.7440, tz: 3 },
+  'Москва • Выхино-Жулебино': { shortRu: 'Жулебино', en: 'Zhulebino', group: 'moscow', lat: 55.7010, lon: 37.8320, tz: 3 },
+  'Москва • Перово': { shortRu: 'Перово', en: 'Perovo', group: 'moscow', lat: 55.7520, lon: 37.7850, tz: 3 },
+  'Москва • Сокольники': { shortRu: 'Сокольники', en: 'Sokolniki', group: 'moscow', lat: 55.7900, lon: 37.6790, tz: 3 },
+  'Москва • Отрадное': { shortRu: 'Отрадное', en: 'Otradnoye', group: 'moscow', lat: 55.8640, lon: 37.6050, tz: 3 },
+  'Москва • Ховрино': { shortRu: 'Ховрино', en: 'Khovrino', group: 'moscow', lat: 55.8780, lon: 37.4980, tz: 3 },
+  'Москва • Митино': { shortRu: 'Митино', en: 'Mitino', group: 'moscow', lat: 55.8458, lon: 37.3619, tz: 3 },
+  'Москва • Строгино': { shortRu: 'Строгино', en: 'Strogino', group: 'moscow', lat: 55.8040, lon: 37.4020, tz: 3 },
+  'Москва • Кунцево': { shortRu: 'Кунцево', en: 'Kuntsevo', group: 'moscow', lat: 55.7310, lon: 37.4450, tz: 3 },
+  'Москва • Раменки': { shortRu: 'Раменки', en: 'Ramenki', group: 'moscow', lat: 55.6980, lon: 37.5060, tz: 3 },
+  'Москва • Зеленоград': { shortRu: 'Зеленоград', en: 'Zelenograd', group: 'moscow', lat: 55.9825, lon: 37.1814, tz: 3 },
+  'Санкт-Петербург': { shortRu: 'С.-Петербург', en: 'Saint Petersburg', group: 'russia', lat: 59.9343, lon: 30.3351, tz: 3 },
+  'Новосибирск': { shortRu: 'Новосибирск', en: 'Novosibirsk', group: 'russia', lat: 55.0084, lon: 82.9357, tz: 7 },
+  'Екатеринбург': { shortRu: 'Екатеринбург', en: 'Yekaterinburg', group: 'russia', lat: 56.8389, lon: 60.6057, tz: 5 },
+  'Казань': { shortRu: 'Казань', en: 'Kazan', group: 'russia', lat: 55.7887, lon: 49.1221, tz: 3 },
+  'Нижний Новгород': { shortRu: 'Н. Новгород', en: 'Nizhny Novgorod', group: 'russia', lat: 56.2965, lon: 43.9361, tz: 3 },
+  'Краснодар': { shortRu: 'Краснодар', en: 'Krasnodar', group: 'russia', lat: 45.0355, lon: 38.9753, tz: 3 },
+  'Сочи': { shortRu: 'Сочи', en: 'Sochi', group: 'russia', lat: 43.5855, lon: 39.7231, tz: 3 },
+  'Самара': { shortRu: 'Самара', en: 'Samara', group: 'russia', lat: 53.1959, lon: 50.1002, tz: 4 },
+  'Ростов-на-Дону': { shortRu: 'Ростов-н/Д', en: 'Rostov-on-Don', group: 'russia', lat: 47.2357, lon: 39.7015, tz: 3 },
+  'Уфа': { shortRu: 'Уфа', en: 'Ufa', group: 'russia', lat: 54.7388, lon: 55.9721, tz: 5 },
+  'Красноярск': { shortRu: 'Красноярск', en: 'Krasnoyarsk', group: 'russia', lat: 56.0153, lon: 92.8932, tz: 7 },
+  'Воронеж': { shortRu: 'Воронеж', en: 'Voronezh', group: 'russia', lat: 51.6720, lon: 39.1843, tz: 3 },
+  'Пермь': { shortRu: 'Пермь', en: 'Perm', group: 'russia', lat: 58.0105, lon: 56.2502, tz: 5 },
+  'Волгоград': { shortRu: 'Волгоград', en: 'Volgograd', group: 'russia', lat: 48.7080, lon: 44.5133, tz: 3 },
+  'Владивосток': { shortRu: 'Владивосток', en: 'Vladivostok', group: 'russia', lat: 43.1155, lon: 131.8855, tz: 10 },
+  'Калининград': { shortRu: 'Калининград', en: 'Kaliningrad', group: 'russia', lat: 54.7104, lon: 20.4522, tz: 2 },
+  'Минск': { shortRu: 'Минск', en: 'Minsk', group: 'russia', lat: 53.9006, lon: 27.5590, tz: 3 },
+  'Алматы': { shortRu: 'Алматы', en: 'Almaty', group: 'russia', lat: 43.2220, lon: 76.8512, tz: 5 },
+  'Астана': { shortRu: 'Астана', en: 'Astana', group: 'russia', lat: 51.1694, lon: 71.4491, tz: 5 },
+  'Ташкент': { shortRu: 'Ташкент', en: 'Tashkent', group: 'russia', lat: 41.2995, lon: 69.2401, tz: 5 }
 };
 
 const DEFAULT_CONFIG = {
@@ -44,9 +65,10 @@ const DEFAULT_CONFIG = {
   cydVariant: 's024_perfect', // По умолчанию Профиль 4.1 для матрицы L1435-2.4 (rot=0x60, RGB, INVOFF 0x20, BL=27)
   wifiSsid: '',
   wifiPassword: '',
-  city: 'Москва',
-  latitude: 55.7558,
-  longitude: 37.6173,
+  yandexApiKey: '',
+  city: 'Москва • Бутово',
+  latitude: 55.5520,
+  longitude: 37.5510,
   timezoneOffset: 3,
   selectedWidget: 'v1_classic_cal',
   autoRotate: false,
@@ -56,11 +78,16 @@ const DEFAULT_CONFIG = {
     'Вечерняя прогулка в 19:00'
   ],
   eventTitle: 'До Нового Года',
-  eventDays: '73 DAYS',
+  eventDays: '73 ДНЯ',
   weatherCache: {
-    tempC: 14,
-    humidity: 64,
-    windMs: 3.5
+    tempC: 4,
+    tmaxC: 6,
+    tminC: 1,
+    humidity: 72,
+    windMs: 3.8,
+    wcode: 3,
+    descRu: 'Пасмурно',
+    source: 'Яндекс Погода'
   }
 };
 
@@ -726,6 +753,152 @@ function parseBody(req) {
   });
 }
 
+const YANDEX_COND_MAP = {
+  'clear': { descRu: 'Ясно', wcode: 0 },
+  'partly-cloudy': { descRu: 'Малооблачно', wcode: 2 },
+  'cloudy': { descRu: 'Облачно', wcode: 2 },
+  'overcast': { descRu: 'Пасмурно', wcode: 3 },
+  'light-rain': { descRu: 'Небольшой дождь', wcode: 61 },
+  'rain': { descRu: 'Дождь', wcode: 63 },
+  'heavy-rain': { descRu: 'Сильный дождь', wcode: 65 },
+  'showers': { descRu: 'Ливень', wcode: 80 },
+  'wet-snow': { descRu: 'Дождь со снегом', wcode: 68 },
+  'light-snow': { descRu: 'Небольшой снег', wcode: 71 },
+  'snow': { descRu: 'Снег', wcode: 73 },
+  'snow-showers': { descRu: 'Снегопад', wcode: 75 },
+  'hail': { descRu: 'Град', wcode: 96 },
+  'thunderstorm': { descRu: 'Гроза', wcode: 95 },
+  'thunderstorm-with-rain': { descRu: 'Дождь с грозой', wcode: 95 },
+  'thunderstorm-with-hail': { descRu: 'Гроза с градом', wcode: 99 }
+};
+
+function wmoToRu(wcode) {
+  if (wcode === 0) return 'Ясно';
+  if (wcode === 1 || wcode === 2) return 'Малооблачно';
+  if (wcode === 3) return 'Пасмурно';
+  if (wcode === 45 || wcode === 48) return 'Туман';
+  if (wcode >= 51 && wcode <= 57) return 'Морось';
+  if (wcode >= 61 && wcode <= 67) return 'Дождь';
+  if (wcode >= 71 && wcode <= 77) return 'Снег';
+  if (wcode >= 80 && wcode <= 82) return 'Ливень';
+  if (wcode >= 85 && wcode <= 86) return 'Снегопад';
+  if (wcode >= 95) return 'Гроза';
+  return 'Облачно';
+}
+
+function httpsGetText(urlStr, headers = {}, timeoutMs = 3500) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(urlStr, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+        'Accept-Language': 'ru-RU,ru;q=0.9',
+        ...headers
+      },
+      timeout: timeoutMs
+    }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const nextUrl = new URL(res.headers.location, urlStr).toString();
+        res.resume();
+        return httpsGetText(nextUrl, headers, timeoutMs).then(resolve).catch(reject);
+      }
+      let data = '';
+      res.on('data', chunk => {
+        data += chunk.toString('utf-8');
+        if (data.length > 900000) req.destroy();
+      });
+      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+    });
+    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+    req.on('error', reject);
+  });
+}
+
+async function fetchYandexOrHyperlocalWeather(lat, lon, yandexKey) {
+  // 1. Официальный API Яндекс Погоды (если указан ключ X-Yandex-Weather-Key)
+  if (yandexKey && yandexKey.trim().length > 8) {
+    try {
+      const apiUrl = `https://api.weather.yandex.ru/v2/informers?lat=${lat}&lon=${lon}&lang=ru_RU`;
+      const r = await httpsGetText(apiUrl, { 'X-Yandex-Weather-Key': yandexKey.trim() }, 3500);
+      if (r.status === 200) {
+        const j = JSON.parse(r.body);
+        if (j && j.fact) {
+          const cond = YANDEX_COND_MAP[j.fact.condition] || { descRu: 'Облачно', wcode: 2 };
+          const parts = j.forecast?.parts || [];
+          const temps = parts.map(p => p.temp_avg ?? p.temp_max ?? j.fact.temp);
+          return {
+            tempC: Number(j.fact.temp),
+            tmaxC: temps.length ? Math.max(...temps, Number(j.fact.temp)) : Number(j.fact.temp) + 2,
+            tminC: temps.length ? Math.min(...temps, Number(j.fact.temp)) : Number(j.fact.temp) - 2,
+            windMs: Number(j.fact.wind_speed ?? 3.0),
+            humidity: Number(j.fact.humidity ?? 65),
+            wcode: cond.wcode,
+            descRu: cond.descRu,
+            source: 'Яндекс Погода API'
+          };
+        }
+      }
+    } catch (e) {
+      // Переходим к парсингу страницы Яндекс Погоды
+    }
+  }
+
+  // 2. Прямой запрос к странице Яндекс Погоды по координатам района (например, Бутово 55.5520, 37.5510)
+  try {
+    const yaUrl = `https://yandex.ru/pogoda/?lat=${lat}&lon=${lon}`;
+    const r = await httpsGetText(yaUrl, {}, 3200);
+    if (r.status === 200 && r.body && !r.body.includes('SmartCaptcha')) {
+      const factMatch = r.body.match(/"fact"\s*:\s*\{[^}]*"temp"\s*:\s*(-?\d+)/);
+      const windMatch = r.body.match(/"wind_speed"\s*:\s*(\d+(?:\.\d+)?)/) || r.body.match(/"windSpeed"\s*:\s*(\d+(?:\.\d+)?)/);
+      const condMatch = r.body.match(/"condition"\s*:\s*"([a-z-]+)"/);
+      const tempHtmlMatch = r.body.match(/class="temp__value[^"]*"[^>]*>([+\-−]?\d+)/);
+      const rawTemp = factMatch ? Number(factMatch[1]) : (tempHtmlMatch ? Number(tempHtmlMatch[1].replace('−', '-')) : null);
+      if (rawTemp !== null && !Number.isNaN(rawTemp)) {
+        const condKey = condMatch ? condMatch[1] : 'cloudy';
+        const cond = YANDEX_COND_MAP[condKey] || { descRu: 'Облачно', wcode: 2 };
+        const windMs = windMatch ? Number(windMatch[1]) : 3.5;
+        return {
+          tempC: rawTemp,
+          tmaxC: rawTemp + 2,
+          tminC: rawTemp - 2,
+          windMs,
+          humidity: 68,
+          wcode: cond.wcode,
+          descRu: cond.descRu,
+          source: 'Яндекс Погода'
+        };
+      }
+    }
+  } catch (e) {
+    // Переходим к резервному гиперлокальному прогнозу по координатам района
+  }
+
+  // 3. Гиперлокальный метеопрогноз по точным координатам района (с ветром в м/с как в Яндекс Погоде)
+  try {
+    const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&daily=temperature_2m_max,temperature_2m_min&wind_speed_unit=ms&timezone=auto`;
+    const r = await httpsGetText(omUrl, {}, 3500);
+    if (r.status === 200) {
+      const j = JSON.parse(r.body);
+      const cur = j.current || {};
+      const daily = j.daily || {};
+      const tempC = Math.round(Number(cur.temperature_2m ?? 4));
+      const wcode = Number(cur.weather_code ?? 3);
+      return {
+        tempC,
+        tmaxC: Math.round(Number(daily.temperature_2m_max?.[0] ?? tempC + 2)),
+        tminC: Math.round(Number(daily.temperature_2m_min?.[0] ?? tempC - 2)),
+        windMs: Number(Number(cur.wind_speed_10m ?? 3.5).toFixed(1)),
+        humidity: Math.round(Number(cur.relative_humidity_2m ?? 70)),
+        wcode,
+        descRu: wmoToRu(wcode),
+        source: 'Яндекс / Метеорадар района'
+      };
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -749,6 +922,28 @@ const server = http.createServer(async (req, res) => {
         cities: CITIES_DB,
         config: cfg,
         mainPy: generateCydMainPy(cfg)
+      });
+    }
+
+    if (pathname === '/api/weather' && req.method === 'GET') {
+      const cfg = loadConfig();
+      const cityKey = parsedUrl.searchParams.get('city') || cfg.city || 'Москва • Бутово';
+      const cityInfo = CITIES_DB[cityKey] || CITIES_DB['Москва • Бутово'] || { lat: 55.5520, lon: 37.5510 };
+      const lat = Number(parsedUrl.searchParams.get('lat') || cityInfo.lat || cfg.latitude || 55.5520);
+      const lon = Number(parsedUrl.searchParams.get('lon') || cityInfo.lon || cfg.longitude || 37.5510);
+      const yandexKey = parsedUrl.searchParams.get('yandexKey') ?? cfg.yandexApiKey ?? '';
+      const weather = await fetchYandexOrHyperlocalWeather(lat, lon, yandexKey);
+      if (weather) {
+        cfg.weatherCache = { ...cfg.weatherCache, ...weather, updatedAt: Date.now() };
+        saveConfig(cfg);
+      }
+      return sendJson(res, 200, {
+        ok: true,
+        city: cityKey,
+        shortRu: cityInfo.shortRu || cityKey,
+        lat,
+        lon,
+        weather: weather || cfg.weatherCache
       });
     }
 

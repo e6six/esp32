@@ -134,14 +134,25 @@
       </div>
     </section>
 
-    <!-- ШАГ 1: НАСТРОЙКИ WI-FI И ПОГОДЫ -->
+    <!-- ШАГ 1: НАСТРОЙКИ WI-FI, РАЙОНА МОСКВЫ (БУТОВО) И ЯНДЕКС ПОГОДЫ -->
     <section class="card">
       <div class="section-title">
         <span class="step-badge">ШАГ 1</span>
-        Данные вашего Wi-Fi, Город для погоды и выбранный профиль экрана
+        Район Москвы / Бутово (Яндекс Погода), Wi-Fi и профиль экрана
       </div>
 
       <div class="wifi-grid">
+        <div class="form-group">
+          <label for="selectCity">📍 Район Москвы или город (точные координаты Яндекс Погоды):</label>
+          <select id="selectCity" class="select"></select>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
+            <button type="button" class="btn btn-sm quick-city-btn" data-city="Москва • Бутово">📍 Бутово</button>
+            <button type="button" class="btn btn-sm quick-city-btn" data-city="Москва • Южное Бутово">📍 Южное Бутово</button>
+            <button type="button" class="btn btn-sm quick-city-btn" data-city="Москва • Северное Бутово">📍 Сев. Бутово</button>
+            <button type="button" class="btn btn-sm quick-city-btn" data-city="Москва">📍 Москва (Центр)</button>
+          </div>
+        </div>
+
         <div class="form-group">
           <label for="inputWifiSsid">📶 Имя вашего Wi-Fi (SSID, 2.4 ГГц):</label>
           <input id="inputWifiSsid" type="text" class="input" placeholder="Например: Home_WiFi" />
@@ -153,18 +164,25 @@
         </div>
 
         <div class="form-group">
-          <label for="selectCity">🌤️ Ваш город (погода Open-Meteo без ключей + часовой пояс):</label>
-          <select id="selectCity" class="select"></select>
-        </div>
-
-        <div class="form-group">
           <label for="selectCydVariant">🟨 Профиль матрицы экрана вашей платы (L1435-2.4):</label>
           <select id="selectCydVariant" class="select">
             <option value="s024_perfect" selected>Профиль 4.1: Тёмный фон + RGB (0x60, INVOFF — По умолчанию)</option>
             <option value="s024_bgr_inv0">Профиль 4.2: Тёмный фон + BGR (0x60, INVOFF)</option>
-            <option value="s024_rgb_inv1">Профиль 4.3: Светлый фон (как на Фото 1, 0x60, INVON)</option>
+            <option value="s024_rgb_inv1">Профиль 4.3: Светлый фон (0x60, INVON)</option>
             <option value="s024_bgr_inv1">Профиль 4.4: Светлый фон + BGR (0x60, INVON)</option>
           </select>
+        </div>
+      </div>
+
+      <div style="margin-top:12px; padding:10px 14px; border-radius:10px; background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.28); display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div id="liveWeatherPreviewBadge" style="font-size:13.5px; color:#e2e8f0; font-weight:600;">
+          🌤️ Яндекс Погода (<span style="color:#fbbf24;">📍 Бутово</span>): загрузка актуальных данных района...
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input id="inputYandexKey" type="text" class="input" style="padding:5px 10px; font-size:12px; width:230px;" placeholder="Ключ API Яндекс Погоды (необязательно)" />
+          <button id="btnRefreshWeatherNow" type="button" class="btn btn-sm" style="background:#0284c7; color:#fff;">
+            🔄 Обновить погоду района
+          </button>
         </div>
       </div>
     </section>
@@ -174,7 +192,7 @@
       <!-- Слева: Живой экран жёлтой платы ESP32-2432S028 -->
       <aside class="card" style="position:sticky; top:84px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <div style="font-weight:800; font-size:15.5px;">🖥️ Экран вашей ESP32-2432S028</div>
+          <div style="font-weight:800; font-size:15.5px;">🖥️ Экран вашей ESP32 (1-в-1 на русском)</div>
           <span id="previewBadge" style="font-size:12px; color:var(--accent-cyan); font-weight:700;">Стиль 1 из 9</span>
         </div>
 
@@ -184,11 +202,13 @@
             <div class="cyd-hole tr"></div>
             <div class="cyd-hole bl"></div>
             <div class="cyd-hole br"></div>
-            <canvas id="cydCanvas" width="320" height="240" title="Нажимайте на кнопки < PREV и NEXT > внизу экрана!"></canvas>
+            <canvas id="cydCanvas" width="320" height="240" title="Предпросмотр 1-в-1 совпадает с экраном вашей платы ESP32"></canvas>
           </div>
 
-          <div style="font-size:12px; color:var(--text-muted); margin-top:12px; text-align:center;">
-            👆 Нажимайте на кнопки <strong>[&lt; PREV]</strong> и <strong>[NEXT &gt;]</strong> внизу экрана — на реальной плате они тоже переключают все 9 видов часов и календарей от касания пальцем!
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:12px;">
+            <button id="btnPreviewPrev" type="button" class="btn btn-sm" style="flex:1;">◀ Предыдущий</button>
+            <span style="font-size:11.5px; color:var(--text-muted); text-align:center;">Мгновенно по USB</span>
+            <button id="btnPreviewNext" type="button" class="btn btn-sm" style="flex:1;">Следующий ▶</button>
           </div>
         </div>
 
