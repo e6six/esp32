@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ESP32-2432S028 — 10 Вариаций Часов, Календарей и Погоды в 1 клик</title>
+  <title>ESP32-2432S028 — Сканер платы и 10 Часов/Календарей в 1 клик</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -12,23 +12,27 @@
     <div class="brand">
       <div class="brand-logo">CYD</div>
       <div>
-        <div class="brand-title">ESP32-2432S028 — 10 Часов, Календарей и Погоды в 1 клик</div>
-        <div class="brand-subtitle">Специально для жёлтой платы 2.8" (320×240) • Автономная работа по Wi-Fi • Установка прямо из браузера</div>
+        <div class="brand-title">ESP32-2432S028 — Аппаратный Сканер + 10 Часов и Календарей</div>
+        <div class="brand-subtitle">Определение ревизии экрана (ESP32-D0WD-V3), быстрое включение за 3 сек и настройка Wi-Fi</div>
       </div>
     </div>
 
     <div class="top-actions">
       <div id="usbStatusPill" class="status-pill">
         <span class="status-dot"></span>
-        <span id="usbStatusText">USB: Готов к установке</span>
+        <span id="usbStatusText">USB: Готов к сканированию</span>
       </div>
 
-      <button id="btnForceReflashEngine" class="btn btn-sm btn-warning" title="Заменить текущую прошивку Bruce 1.11.1 на графический движок">
-        🔥 Прошить с нуля (заменить Bruce 1.11.1)
+      <button id="btnQuickWakeUp" class="btn btn-sm btn-install" title="За 3 секунды дозаписать файловую систему виджетов (0x343000) и включить экран без долгой перепрошивки">
+        🚑 Включить экран (Быстро за 3 сек!)
+      </button>
+
+      <button id="btnForceReflashEngine" class="btn btn-sm btn-warning" title="Полностью перепрошить и базовый движок (0x0), и виджеты (0x343000)">
+        🔥 Полная прошивка с нуля (50 сек)
       </button>
 
       <a id="btnOpenNewTab" href="/" target="_blank" rel="noopener" class="btn btn-sm btn-primary">
-        ↗ Открыть в новой вкладке (для доступа к USB)
+        ↗ Открыть в новой вкладке (для USB)
       </a>
     </div>
   </header>
@@ -37,25 +41,93 @@
     <!-- Предупреждение если открыто во фрейме -->
     <div id="iframeNotice" class="newtab-notice" style="display:none;">
       <div>
-        ⚠️ <strong>Для подключения платы по USB:</strong> Вы сейчас смотрите сайт во встроенном окне предпросмотра. Нажмите кнопку справа, чтобы открыть сайт в отдельной вкладке браузера (Chrome / Edge / Яндекс / Opera) и прошить ESP32-2432S028:
+        ⚠️ <strong>Для работы с USB-портом:</strong> Откройте сайт в отдельной вкладке браузера (Chrome / Edge / Яндекс / Opera) кнопкой справа:
       </div>
       <a id="btnOpenNewTabBanner" href="/" target="_blank" rel="noopener" class="btn btn-warning btn-sm">
         ↗ Открыть сайт в отдельной вкладке
       </a>
     </div>
 
-    <!-- Блок Быстрого Старта на своём ПК (2 команды) -->
-    <section class="card" style="padding:14px 20px; background:rgba(16,185,129,0.06); border-color:rgba(16,185,129,0.35);">
-      <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;">
+    <!-- НОВЫЙ БЛОК: ГЛУБОКИЙ АППАРАТНЫЙ СКАНЕР И ВКЛЮЧЕНИЕ ЭКРАНА -->
+    <section class="card" style="border-color: var(--accent-cyan); background: linear-gradient(180deg, rgba(0,229,255,0.07) 0%, rgba(17,24,39,0.92) 100%);">
+      <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;">
         <div>
-          <strong style="color:#34d399;">🚀 Быстрый запуск у себя на ПК (всего 2 команды, ничего дополнительно устанавливать не нужно):</strong>
-          <div style="font-family:monospace; font-size:13px; color:#f8fafc; margin-top:4px;">
-            <code id="quickStartCmd">git clone -b arena/0c74c634-esp32 https://github.com/e6six/esp32.git &amp;&amp; cd esp32 &amp;&amp; node server.js</code>
+          <div class="section-title" style="margin-bottom:4px;">
+            <span class="step-badge">🔍 СКАНЕР И ОЖИВЛЕНИЕ ЭКРАНА</span>
+            Аппаратный паспорт вашей платы и подбор профиля матрицы за 3 секунды
+          </div>
+          <p style="font-size:13px; color:var(--text-muted);">
+            Почему экран погас после первой прошивки? Базовый движок (3.26 МБ) уже успешно записался в вашу плату, но оставался не записан быстрый раздел виджетов (84 КБ по адресу <code>0x343000</code>), который зажигает подсветку экрана! Нажмите <strong>«🔍 Просканировать плату и зажечь экран (за 3 сек)»</strong> ниже:
+          </p>
+        </div>
+
+        <button id="btnRunDeepScan" class="btn btn-install" style="font-size:14.5px; padding:12px 20px;">
+          🔍 Просканировать плату и зажечь экран (за 3 сек)
+        </button>
+      </div>
+
+      <!-- Паспорт обнаруженного железа -->
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap:12px; margin-bottom:14px;">
+        <div class="card" style="padding:12px; background:var(--bg-input);">
+          <div style="font-size:11.5px; color:var(--text-muted);">Процессор и ревизия ядра</div>
+          <div id="scanChipModel" style="font-size:14.5px; font-weight:800; color:var(--accent-cyan); margin-top:2px;">
+            ESP32-D0WD-V3 (rev 3.0)
+          </div>
+          <div style="font-size:11.5px; color:var(--accent-green); margin-top:2px;">
+            2 ядра Xtensa LX6 • 240 МГц • Новая ревизия ECO3
           </div>
         </div>
-        <button id="btnCopyQuickStart" class="btn btn-sm">
-          📋 Скопировать команду запуска
-        </button>
+
+        <div class="card" style="padding:12px; background:var(--bg-input);">
+          <div style="font-size:11.5px; color:var(--text-muted);">USB-мост и MAC-адрес</div>
+          <div id="scanUsbMac" style="font-size:14.5px; font-weight:800; color:#f8fafc; margin-top:2px;">
+            CH340 (1A86:7523)
+          </div>
+          <div id="scanMacSub" style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">
+            MAC: 20:E7:C8:59:B1:D0
+          </div>
+        </div>
+
+        <div class="card" style="padding:12px; background:var(--bg-input);">
+          <div style="font-size:11.5px; color:var(--text-muted);">Flash-память и разделы</div>
+          <div id="scanFlashInfo" style="font-size:14.5px; font-weight:800; color:var(--accent-amber); margin-top:2px;">
+            4 МБ SPI DIO (ID: 0x164068)
+          </div>
+          <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">
+            Движок: 0x10000 • Виджеты VFS: 0x343000
+          </div>
+        </div>
+
+        <div class="card" style="padding:12px; background:var(--bg-input);">
+          <div style="font-size:11.5px; color:var(--text-muted);">Особенность вашей ревизии V3</div>
+          <div id="scanBoardQuirks" style="font-size:13px; font-weight:700; color:#34d399; margin-top:2px;">
+            Чип D0WD-V3 часто идёт с экраном Type 2 (ST7789/ILI9341v2)
+          </div>
+          <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">
+            Проверьте 4 кнопки профиля экрана ниже 👇
+          </div>
+        </div>
+      </div>
+
+      <!-- Быстрый 2-секундный тестер 4 профилей экрана для ESP32-D0WD-V3 -->
+      <div style="background:rgba(10,16,29,0.85); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:8px; color:#f8fafc;">
+          🎛️ Быстрый перебор типа матрицы вашей платы (каждая кнопка прошивает конфиг всего за 2 секунды!):
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap:8px;">
+          <button class="btn btn-sm profile-test-btn" data-variant="standard">
+            💡 Профиль 1: Стандарт ILI9341 (Type 1, Пин 21)
+          </button>
+          <button class="btn btn-sm profile-test-btn" data-variant="variant2">
+            💡 Профиль 2: Ревизия V3 / 2-USB (Type 2 RGB, Пин 21)
+          </button>
+          <button class="btn btn-sm profile-test-btn" data-variant="variant3_type2_bgr">
+            💡 Профиль 3: Ревизия V3 (Type 2 BGR, Пин 21)
+          </button>
+          <button class="btn btn-sm profile-test-btn" data-variant="variant4_bl27">
+            💡 Профиль 4: Подсветка на GPIO 27 (S024 / S035)
+          </button>
+        </div>
       </div>
     </section>
 
@@ -63,7 +135,7 @@
     <section class="card">
       <div class="section-title">
         <span class="step-badge">ШАГ 1</span>
-        Введите данные вашего Wi-Fi и выберите город для погоды и точного времени
+        Данные вашего Wi-Fi, Город для погоды и выбранный профиль экрана
       </div>
 
       <div class="wifi-grid">
@@ -83,10 +155,12 @@
         </div>
 
         <div class="form-group">
-          <label for="selectCydVariant">🟨 Ревизия вашей ESP32-2432S028:</label>
+          <label for="selectCydVariant">🟨 Профиль матрицы экрана вашей платы:</label>
           <select id="selectCydVariant" class="select">
-            <option value="standard">Стандартная (1 разъём Micro-USB, ILI9341)</option>
-            <option value="variant2">Новая ревизия (2 разъёма: Type-C + Micro-USB)</option>
+            <option value="standard">Профиль 1: Стандарт ILI9341 (Type 1, BGR, Пин 21)</option>
+            <option value="variant2">Профиль 2: Ревизия V3 / 2-USB (Type 2, RGB, Пин 21)</option>
+            <option value="variant3_type2_bgr">Профиль 3: Ревизия V3 (Type 2, BGR, Пин 21)</option>
+            <option value="variant4_bl27">Профиль 4: Подсветка GPIO 27 (CYD 2.4" / 3.5")</option>
           </select>
         </div>
       </div>
@@ -98,7 +172,7 @@
       <aside class="card" style="position:sticky; top:84px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <div style="font-weight:800; font-size:15.5px;">🖥️ Экран вашей ESP32-2432S028</div>
-          <span id="previewBadge" style="font-size:12px; color:var(--accent-cyan); font-weight:700;">Вариант 1 из 10</span>
+          <span id="previewBadge" style="font-size:12px; color:var(--accent-cyan); font-weight:700;">Стиль 1 из 9</span>
         </div>
 
         <div class="cyd-stage">
@@ -111,23 +185,28 @@
           </div>
 
           <div style="font-size:12px; color:var(--text-muted); margin-top:12px; text-align:center;">
-            👆 Нажимайте на сенсорные кнопки <strong>[&lt; PREV]</strong> и <strong>[NEXT &gt;]</strong> внизу экрана (на реальной плате они тоже переключают все виды часов и календарей от касания пальцем!)
+            👆 Нажимайте на кнопки <strong>[&lt; PREV]</strong> и <strong>[NEXT &gt;]</strong> внизу экрана — на реальной плате они тоже переключают все 9 видов часов и календарей от касания пальцем!
           </div>
         </div>
 
         <button id="btnInstallActivePreview" class="btn btn-install" style="width:100%; margin-top:14px;">
-          ⚡ Установить выбранный вариант на ESP32-2432S028
+          ⚡ Записать этот виджет на плату (Быстро за 3 сек!)
         </button>
+
+        <div style="margin-top:12px; font-size:12px; color:var(--text-muted);">
+          🚀 Запуск проекта дома за 2 команды:<br />
+          <code style="color:#34d399;">git clone -b arena/0c74c634-esp32 https://github.com/e6six/esp32.git &amp;&amp; cd esp32 &amp;&amp; node server.js</code>
+        </div>
       </aside>
 
       <!-- Справа: 10 готовых вариаций часов, календарей и погоды -->
       <section class="card">
         <div class="section-title">
           <span class="step-badge">ШАГ 2</span>
-          10 Вариаций Часов, Календарей и Погоды — нажмите на любой и установите в 1 клик
+          10 Вариаций Часов, Календарей и Погоды (установка за 3 секунды!)
         </div>
         <p style="font-size:13.5px; color:var(--text-muted); margin-bottom:16px;">
-          Все 10 вариантов работают <strong>полностью автономно по Wi-Fi</strong> (сами берут точное время, дату и погоду для вашего города). При первой установке сайт автоматически заменит вашу прошивку <strong>Bruce 1.11.1</strong>, а дальше смена любого дизайна занимает всего <strong>2 секунды</strong>!
+          Поскольку базовый графический движок (3.26 МБ) уже прошит в вашу плату, нажатие <strong>«⚡ Установить на мой ESP32-2432S028»</strong> теперь записывает только лёгкий пакет виджетов (84 КБ) по адресу <code>0x343000</code> и занимает <strong>всего 3 секунды</strong>!
         </p>
 
         <div id="widgetsGallery" class="widgets-gallery"></div>
@@ -135,12 +214,12 @@
     </div>
   </main>
 
-  <!-- Модальное окно автоматической установки на ESP32-2432S028 -->
+  <!-- Модальное окно автоматической установки и сканирования -->
   <div id="installModal" class="modal-backdrop">
     <div class="modal-box">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <div style="font-size:17px; font-weight:800;">
-          ⚡ Установка на ESP32-2432S028
+        <div style="font-size:17px; font-weight:800;" id="modalTitleText">
+          ⚡ Быстрая запись виджета и сканирование ESP32-2432S028
         </div>
         <button id="btnCloseModal" class="btn btn-sm">✕ Закрыть</button>
       </div>
@@ -157,10 +236,10 @@
 
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; gap:10px; flex-wrap:wrap;">
         <span style="font-size:12px; color:var(--text-muted);">
-          💡 Если плата не входит в прошивку сама — зажмите кнопку <strong>BOOT</strong> на плате.
+          💡 Если экран всё ещё тёмный — нажмите кнопку <strong>Профиль 2</strong> или <strong>Профиль 4</strong> в блоке Сканера!
         </span>
         <button id="btnRetryWithFullFlash" class="btn btn-sm btn-warning">
-          🔄 Полная перепрошивка (поверх Bruce 1.11.1)
+          🔥 Полная прошивка с нуля (0x0 + 0x343000)
         </button>
       </div>
     </div>

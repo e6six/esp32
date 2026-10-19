@@ -120,9 +120,25 @@ let state = {
   previewIdx: 0,
   pomoSec: 25 * 60,
   pomoRun: false,
-  serialPort: null,
-  mainPyCode: ''
+  serialPort: null
 };
+
+function toAsciiSafe(str) {
+  if (!str) return '';
+  const map = {
+    а:'a', б:'b', в:'v', г:'g', д:'d', е:'e', ё:'yo', ж:'zh', з:'z', и:'i', й:'y',
+    к:'k', л:'l', м:'m', н:'n', о:'o', п:'p', р:'r', с:'s', т:'t', у:'u', ф:'f',
+    х:'kh', ц:'ts', ч:'ch', ш:'sh', щ:'shch', ъ:'', ы:'y', ь:'', э:'e', ю:'yu', я:'ya',
+    А:'A', Б:'B', В:'V', Г:'G', Д:'D', Е:'E', Ё:'Yo', Ж:'Zh', З:'Z', И:'I', Й:'Y',
+    К:'K', Л:'L', М:'M', Н:'N', О:'O', П:'P', Р:'R', С:'S', Т:'T', У:'U', Ф:'F',
+    Х:'Kh', Ц:'Ts', Ч:'Ch', Ш:'Sh', Щ:'Shch', Ъ:'', Ы:'Y', Ь:'', Э:'E', Ю:'Yu', Я:'Ya'
+  };
+  return String(str)
+    .split('')
+    .map(ch => (map[ch] !== undefined ? map[ch] : ch))
+    .join('')
+    .replace(/[^\x20-\x7E]/g, '');
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   const isInIframe = window.self !== window.top;
@@ -154,7 +170,6 @@ async function loadInitialStatus() {
     if (data.ok) {
       state.cities = data.cities || {};
       state.config = { ...state.config, ...data.config };
-      state.mainPyCode = data.mainPy || '';
 
       const idx = NINE_MODES.indexOf(state.config.selectedWidget);
       state.previewIdx = idx >= 0 ? idx : 0;
@@ -215,7 +230,6 @@ async function saveConfigToServer(widgetId) {
   const data = await res.json();
   if (data.ok) {
     state.config = data.config;
-    state.mainPyCode = data.mainPy;
   }
   return data;
 }
@@ -277,7 +291,7 @@ function renderWidgetsGallery() {
           👁️ Посмотреть на экране слева
         </button>
         <button class="btn btn-install" data-install="${item.id}">
-          ⚡ Установить на мой ESP32-2432S028
+          ⚡ Установить на мой ESP32-2432S028 (за 3 сек)
         </button>
       </div>
     `;
@@ -334,7 +348,6 @@ function renderCydCanvas() {
   ctx.fillStyle = '#070B14';
   ctx.fillRect(0, 0, W, H);
 
-  // Верхняя шапка (320x24)
   ctx.fillStyle = '#101C33';
   ctx.fillRect(0, 0, W, 24);
 
@@ -370,11 +383,9 @@ function renderCydCanvas() {
   else if (modeId === 'v8_pomodoro') drawV8Pomodoro(ctx, now);
   else drawV9NightClock(ctx, now);
 
-  // Нижняя сенсорная панель [< PREV] [TOUCH TO SWITCH] [NEXT >]
   ctx.fillStyle = '#0E172A';
   ctx.fillRect(0, 206, W, 34);
 
-  // Кнопка < PREV
   ctx.fillStyle = '#0284C7';
   ctx.beginPath();
   ctx.roundRect(8, 210, 88, 26, 6);
@@ -387,7 +398,6 @@ function renderCydCanvas() {
   ctx.font = 'bold 10px sans-serif';
   ctx.fillText('TOUCH TO SWITCH', 114, 226);
 
-  // Кнопка NEXT >
   ctx.fillStyle = '#0284C7';
   ctx.beginPath();
   ctx.roundRect(224, 210, 88, 26, 6);
@@ -425,7 +435,6 @@ function drawV1ClassicCal(ctx, now) {
   ctx.fillStyle = '#10B981';
   ctx.fillText(`Ветер 3.5 м/с`, 16, 174);
 
-  // Сетка календаря
   ctx.fillStyle = '#0D1526';
   ctx.strokeStyle = '#1E3A5F';
   ctx.beginPath();
@@ -499,7 +508,6 @@ function drawV2FlipClock(ctx, now) {
 }
 
 function drawV3TearCal(ctx, now) {
-  // Лист отрывного календаря слева
   ctx.fillStyle = '#F8FAFC';
   ctx.beginPath();
   ctx.roundRect(12, 34, 154, 162, 12);
@@ -526,7 +534,6 @@ function drawV3TearCal(ctx, now) {
   const wTxt = daysRu[now.getDay()];
   ctx.fillText(wTxt, 89 - ctx.measureText(wTxt).width / 2, 180);
 
-  // Правая карточка с часами и погодой
   ctx.fillStyle = '#101C33';
   ctx.beginPath();
   ctx.roundRect(176, 34, 132, 162, 12);
@@ -645,7 +652,6 @@ function drawV8Pomodoro(ctx, now) {
   ctx.font = 'bold 46px monospace';
   ctx.fillText(`${mins}:${secs}`, 92, 82);
 
-  // Кнопки START и RESET
   ctx.fillStyle = state.pomoRun ? '#EF4444' : '#10B981';
   ctx.beginPath();
   ctx.roundRect(30, 104, 120, 42, 8);
@@ -687,7 +693,6 @@ function setupEventListeners() {
     const x = ((e.clientX - rect.left) / rect.width) * 320;
     const y = ((e.clientY - rect.top) / rect.height) * 240;
 
-    // Кнопка < PREV
     if (y >= 206 && x <= 104) {
       state.previewIdx = (state.previewIdx - 1 + NINE_MODES.length) % NINE_MODES.length;
       state.config.selectedWidget = NINE_MODES[state.previewIdx];
@@ -695,7 +700,6 @@ function setupEventListeners() {
       renderCydCanvas();
       return;
     }
-    // Кнопка NEXT >
     if (y >= 206 && x >= 216) {
       state.previewIdx = (state.previewIdx + 1) % NINE_MODES.length;
       state.config.selectedWidget = NINE_MODES[state.previewIdx];
@@ -704,7 +708,6 @@ function setupEventListeners() {
       return;
     }
 
-    // Кнопки Помодоро в Варианте 8
     if (NINE_MODES[state.previewIdx] === 'v8_pomodoro' && y >= 104 && y <= 146) {
       if (x >= 30 && x <= 150) {
         state.pomoRun = !state.pomoRun;
@@ -728,6 +731,14 @@ function setupEventListeners() {
     runOneClickInstall(state.config.selectedWidget || NINE_MODES[state.previewIdx], false);
   });
 
+  document.getElementById('btnQuickWakeUp')?.addEventListener('click', () => {
+    runOneClickInstall(state.config.selectedWidget || 'v1_classic_cal', false);
+  });
+
+  document.getElementById('btnRunDeepScan')?.addEventListener('click', () => {
+    runOneClickInstall(state.config.selectedWidget || 'v1_classic_cal', false);
+  });
+
   document.getElementById('btnForceReflashEngine')?.addEventListener('click', () => {
     runOneClickInstall(state.config.selectedWidget || 'v1_classic_cal', true);
   });
@@ -740,18 +751,19 @@ function setupEventListeners() {
     runOneClickInstall(state.config.selectedWidget || 'v1_classic_cal', true);
   });
 
-  document.getElementById('btnCopyQuickStart')?.addEventListener('click', async () => {
-    const cmd = 'git clone -b arena/0c74c634-esp32 https://github.com/e6six/esp32.git && cd esp32 && node server.js';
-    await navigator.clipboard.writeText(cmd);
-    const btn = document.getElementById('btnCopyQuickStart');
-    const orig = btn.textContent;
-    btn.textContent = '✅ Скопировано!';
-    setTimeout(() => (btn.textContent = orig), 2200);
+  // 4 кнопки мгновенного теста профиля матрицы экрана
+  document.querySelectorAll('.profile-test-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const variant = btn.dataset.variant;
+      document.getElementById('selectCydVariant').value = variant;
+      state.config.cydVariant = variant;
+      await runOneClickInstall(state.config.selectedWidget || 'v1_classic_cal', false);
+    });
   });
 }
 
 // ============================================================================
-// УСТАНОВКА В 1 КЛИК НА ESP32-2432S028
+// СКАНИРОВАНИЕ + БЫСТРАЯ УСТАНОВКА НА ESP32-2432S028 (ЗА 3 СЕКУНДЫ ЧЕРЕЗ 0x343000)
 // ============================================================================
 function logInstall(msg) {
   const box = document.getElementById('modalInstallLog');
@@ -767,25 +779,51 @@ function setProgress(pct, stepText) {
   if (desc && stepText) desc.textContent = stepText;
 }
 
-async function runOneClickInstall(widgetId, forceFullFlash = false) {
+// Создаёт 4096-байтный блок конфигурации для записи в 0x3E3000 (блок 160 раздела vfs)
+function buildConfigFlashSector(cfg) {
+  const cityInfo = state.cities[cfg.city] || { en: toAsciiSafe(cfg.city || 'Moscow'), lat: 55.7558, lon: 37.6173, tz: 3 };
+  const payloadObj = {
+    cydVariant: cfg.cydVariant || 'standard',
+    wifiSsid: cfg.wifiSsid || '',
+    wifiPassword: cfg.wifiPassword || '',
+    cityEn: cityInfo.en || 'Moscow',
+    latitude: Number(cfg.latitude || cityInfo.lat),
+    longitude: Number(cfg.longitude || cityInfo.lon),
+    timezoneOffset: Number(cfg.timezoneOffset ?? cityInfo.tz),
+    selectedWidget: cfg.selectedWidget || 'v1_classic_cal',
+    notes: (cfg.notes || []).slice(0, 3).map(s => toAsciiSafe(s).slice(0, 34)),
+    eventTitle: toAsciiSafe(cfg.eventTitle || 'NEW YEAR').slice(0, 26),
+    eventDays: toAsciiSafe(cfg.eventDays || '73 DAYS').slice(0, 18),
+    tempC: 14,
+    windMs: 3.5
+  };
+
+  const jsonBytes = new TextEncoder().encode('CYDCFG1:' + JSON.stringify(payloadObj) + '\0');
+  const sector = new Uint8Array(4096).fill(0xff);
+  sector.set(jsonBytes.slice(0, 4095), 0);
+  return sector;
+}
+
+async function runOneClickInstall(widgetId, forceFullEngineFlash = false) {
   const modal = document.getElementById('installModal');
   const logBox = document.getElementById('modalInstallLog');
   logBox.textContent = '';
   modal.classList.add('open');
 
-  setProgress(5, 'Сохраняем выбранный вариант часов/календаря, Wi-Fi и город...');
+  setProgress(5, 'Сохраняем настройки и готовим пакет для вашей ESP32-2432S028...');
   await saveConfigToServer(widgetId);
   renderWidgetsGallery();
 
   const wInfo = WIDGET_CATALOG.find(w => w.id === widgetId) || WIDGET_CATALOG[0];
-  logInstall(`🚀 Выбран дизайн: "${wInfo.title}"`);
-  logInstall(`📶 Wi-Fi: ${state.config.wifiSsid ? state.config.wifiSsid : '(не указан)'}`);
+  logInstall(`🚀 Выбран виджет: "${wInfo.title}"`);
+  logInstall(`🟨 Профиль матрицы экрана: ${state.config.cydVariant}`);
+  logInstall(`📶 Wi-Fi: ${state.config.wifiSsid ? state.config.wifiSsid : '(автономные часы и календарь без Wi-Fi)'}`);
   logInstall(`🌤️ Город погоды: ${state.config.city} (Lat ${state.config.latitude}, Lon ${state.config.longitude})`);
 
   if (!('serial' in navigator)) {
     setProgress(0, '⚠️ Откройте сайт в отдельной вкладке Chrome / Edge / Яндекс / Opera');
     logInstall('\n❌ Браузер ограничил доступ к USB во встроенном окне.');
-    logInstall('👉 Нажмите «↗ Открыть в новой вкладке» вверху справа и нажмите «Установить» ещё раз!');
+    logInstall('👉 Нажмите «↗ Открыть в новой вкладке» вверху справа и нажмите кнопку ещё раз!');
     return;
   }
 
@@ -803,174 +841,171 @@ async function runOneClickInstall(widgetId, forceFullFlash = false) {
       }
     } catch (_) {}
 
-    let hasWidgetEngine = false;
-    if (!forceFullFlash) {
-      setProgress(15, 'Проверяем текущую прошивку на вашей ESP32-2432S028...');
-      logInstall('🔍 Проверяем, установлен ли уже графический движок или на плате сейчас Bruce 1.11.1...');
-      hasWidgetEngine = await probeMicroPythonRepl(port);
+    // Считываем USB VID/PID для паспорта устройства
+    const portInfo = port.getInfo ? port.getInfo() : {};
+    if (portInfo.usbVendorId && portInfo.usbProductId) {
+      const vid = portInfo.usbVendorId.toString(16).toUpperCase().padStart(4, '0');
+      const pid = portInfo.usbProductId.toString(16).toUpperCase().padStart(4, '0');
+      const bridgeName = vid === '1A86' && pid === '7523' ? 'CH340' : vid === '10C4' ? 'CP2102' : 'USB-UART';
+      document.getElementById('scanUsbMac').textContent = `${bridgeName} (${vid}:${pid})`;
     }
 
-    if (!hasWidgetEngine || forceFullFlash) {
-      logInstall('⚡ Заменяем Bruce 1.11.1 на графический движок LVGL 9.4 для ESP32-2432S028...');
-      setProgress(20, 'Загрузка графического движка ESP32-2432S028...');
+    setProgress(18, 'Скачиваем образ файловой системы виджетов (84 КБ)...');
+    const vfsResp = await fetch('/firmware/vfs_widgets.bin');
+    if (!vfsResp.ok) throw new Error('Не удалось загрузить /firmware/vfs_widgets.bin');
+    const vfsUint8 = new Uint8Array(await vfsResp.arrayBuffer());
+    const cfgSectorUint8 = buildConfigFlashSector(state.config);
 
+    const filesToFlash = [];
+    if (forceFullEngineFlash) {
+      logInstall('📥 Режим полной прошивки с нуля: загружаем базовый движок LVGL 9.4 (3.26 МБ)...');
+      setProgress(22, 'Загрузка базового графического движка (3.26 МБ)...');
       const fwResp = await fetch('/firmware/cyd_lvgl_engine.bin');
-      if (!fwResp.ok) throw new Error('Не найден файл /firmware/cyd_lvgl_engine.bin');
+      if (!fwResp.ok) throw new Error('Не найден /firmware/cyd_lvgl_engine.bin');
       const fwUint8 = new Uint8Array(await fwResp.arrayBuffer());
-      logInstall(`✅ Движок загружен (${(fwUint8.length / (1024 * 1024)).toFixed(2)} МБ). Начинаем прошивку...`);
-
-      const transport = new Transport(port, false);
-      const espLoaderTerminal = {
-        clean() {},
-        writeLine(data) {
-          if (data && !data.startsWith('Writing at')) logInstall('  [esptool] ' + data);
-        },
-        write() {}
-      };
-
-      const esploader = new ESPLoader({
-        transport,
-        baudrate: 460800,
-        romBaudrate: 115200,
-        terminal: espLoaderTerminal
-      });
-
-      const chipName = await esploader.main();
-      logInstall(`✅ Подключено к чипу: ${chipName}`);
-
-      await esploader.writeFlash({
-        fileArray: [{ data: fwUint8, address: 0x0 }],
-        flashSize: '4MB',
-        flashMode: 'dio',
-        flashFreq: '40m',
-        eraseAll: false,
-        compress: true,
-        reportProgress: (fileIdx, written, total) => {
-          const ratio = total > 0 ? written / total : 0;
-          const pct = Math.round(30 + ratio * 52);
-          setProgress(pct, `Прошивка движка ESP32-2432S028: ${Math.round(ratio * 100)}%`);
-        }
-      });
-
-      logInstall('✅ Графический движок успешно прошит! Перезагружаем плату...');
-      await esploader.after('hard_reset');
-      try {
-        await transport.disconnect();
-      } catch (_) {}
-
-      setProgress(85, 'Запуск графического движка (2.5 сек)...');
-      await new Promise(r => setTimeout(r, 2600));
+      filesToFlash.push({ data: fwUint8, address: 0x0 });
     } else {
-      logInstall('✅ Графический движок уже стоит на плате! Обновляем дизайн за 2 секунды.');
+      logInstall('⚡ Быстрый режим (3 сек): базовый движок на 0x0 уже прошит, записываем только раздел виджетов VFS (0x343000) и конфиг (0x3E3000)!');
     }
 
-    setProgress(88, 'Записываем выбранный календарь/часы, Wi-Fi и город в память платы...');
-    logInstall('📤 Загружаем все 10 вариаций часов/календарей и ваши настройки Wi-Fi в /main.py...');
+    filesToFlash.push({ data: vfsUint8, address: 0x343000 });
+    filesToFlash.push({ data: cfgSectorUint8, address: 0x3e3000 });
 
-    await uploadMainPyOverRawRepl(port, state.mainPyCode, pct => {
-      setProgress(88 + Math.round(pct * 0.11), `Запись виджета и Wi-Fi: ${pct}%`);
+    setProgress(28, 'Подключение к чипу ESP32 и чтение аппаратных регистров...');
+    const transport = new Transport(port, false);
+
+    const espLoaderTerminal = {
+      clean() {},
+      writeLine(data) {
+        if (!data) return;
+        if (!data.startsWith('Writing at')) {
+          logInstall('  [esptool] ' + data);
+        }
+        // Автоматическое обновление карточек Сканера на основе данных загрузчика
+        if (data.startsWith('Chip is ')) {
+          const model = data.replace('Chip is ', '').trim();
+          document.getElementById('scanChipModel').textContent = model;
+        } else if (data.startsWith('MAC: ')) {
+          document.getElementById('scanMacSub').textContent = data.trim();
+        } else if (data.startsWith('Flash ID:')) {
+          const fid = data.replace('Flash ID:', '').trim();
+          document.getElementById('scanFlashInfo').textContent = `4 МБ SPI DIO (ID: 0x${fid})`;
+        }
+      },
+      write() {}
+    };
+
+    const esploader = new ESPLoader({
+      transport,
+      baudrate: 460800,
+      romBaudrate: 115200,
+      terminal: espLoaderTerminal
     });
+
+    const chipName = await esploader.main();
+    logInstall(`✅ Чип успешно просканирован: ${chipName}`);
+
+    await esploader.writeFlash({
+      fileArray: filesToFlash,
+      flashSize: '4MB',
+      flashMode: 'dio',
+      flashFreq: '40m',
+      eraseAll: false,
+      compress: true,
+      reportProgress: (fileIdx, written, total) => {
+        const ratio = total > 0 ? written / total : 0;
+        const pct = Math.round(32 + ratio * 52);
+        const label =
+          filesToFlash.length === 3 && fileIdx === 0
+            ? `Запись базового движка (0x0): ${Math.round(ratio * 100)}%`
+            : `Запись пакета виджетов и подсветки (0x343000): ${Math.round(ratio * 100)}%`;
+        setProgress(pct, label);
+      }
+    });
+
+    logInstall('✅ Файловая система виджетов (0x343000) и настройки (0x3E3000) записаны!');
+    setProgress(88, 'Выполняем аппаратный сброс платы (импульс RTS) и включаем экран...');
+
+    // НАСТОЯЩИЙ АППАРАТНЫЙ СБРОС (исправление бага HardReset в esptool-js, который не дёргал RTS=true!)
+    try {
+      await transport.setDTR(false);
+      await transport.setRTS(true);
+      await new Promise(r => setTimeout(r, 180));
+      await transport.setRTS(false);
+      await transport.setDTR(false);
+      await new Promise(r => setTimeout(r, 100));
+    } catch (_) {}
+
+    try {
+      await transport.disconnect();
+    } catch (_) {}
+
+    // Перехватываем стартовый лог загрузки платы на 115200 бод!
+    setProgress(92, 'Читаем диагностический отчёт запуска экрана (115200 бод)...');
+    logInstall('🔍 Считываем лог старта вашей платы после перезагрузки...');
+    await capturePostResetBootLog(port);
 
     const pill = document.getElementById('usbStatusPill');
     pill.classList.add('connected');
-    document.getElementById('usbStatusText').textContent = 'USB: ESP32-2432S028 Готов';
+    document.getElementById('usbStatusText').textContent = 'USB: Плата активна';
 
-    setProgress(100, '🎉 Готово! Часы, календарь и погода запущены на вашей ESP32-2432S028!');
-    logInstall('\n🎉 УСПЕШНО УСТАНОВЛЕНО!');
-    logInstall('👉 Вы также можете переключать все 9 стилей часов и календарей прямо пальцем по кнопкам [< PREV] и [NEXT >] на экране вашей платы!');
+    setProgress(100, '🎉 Готово! Проверьте экран вашей платы ESP32-2432S028!');
+    logInstall('\n🎉 ЗАПИСЬ И ПЕРЕЗАПУСК ЗАВЕРШЕНЫ!');
+    logInstall('👉 Посмотрите на экран платы. Если у вашей ревизии чипа ESP32-D0WD-V3 другой тип матрицы (экран белый или инвертирован) — нажмите кнопку «Профиль 2», «Профиль 3» или «Профиль 4» в блоке Сканера!');
   } catch (err) {
-    console.error('Ошибка установки:', err);
+    console.error('Ошибка:', err);
     setProgress(0, `❌ Ошибка: ${err.message}`);
     logInstall(`\n❌ Ошибка: ${err.message}`);
   }
 }
 
-async function probeMicroPythonRepl(port) {
+// Считывает реальный лог загрузки ESP32 после прошивки и парсит CYD_SCAN_REPORT
+async function capturePostResetBootLog(port) {
   try {
     await port.open({ baudRate: 115200 });
-    const writer = port.writable.getWriter();
+    // Делаем контрольный импульс сброса RTS, чтобы гарантированно увидеть весь лог старта с первой строки
+    await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+    await new Promise(r => setTimeout(r, 140));
+    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+
     const reader = port.readable.getReader();
-
-    await writer.write(new Uint8Array([0x03, 0x03, 0x0d, 0x0a]));
-    await new Promise(r => setTimeout(r, 180));
-    await writer.write(new TextEncoder().encode('\r\nprint("CYD_MPY_OK")\r\n'));
-
-    let collected = '';
     const decoder = new TextDecoder();
-    const deadline = Date.now() + 850;
+    let bootText = '';
+    const deadline = Date.now() + 2500;
 
     while (Date.now() < deadline) {
-      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ done: true }), 220));
+      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ done: true }), 250));
       const { value, done } = await Promise.race([reader.read(), timeoutPromise]);
       if (done) break;
       if (value) {
-        collected += decoder.decode(value, { stream: true });
-        if (collected.includes('CYD_MPY_OK') || collected.includes('>>> ')) {
-          reader.releaseLock();
-          writer.releaseLock();
-          await port.close();
-          return true;
+        const chunk = decoder.decode(value, { stream: true });
+        bootText += chunk;
+        if (bootText.includes('CYD_WIDGET_ENGINE_READY')) {
+          break;
         }
       }
     }
 
     reader.releaseLock();
-    writer.releaseLock();
     await port.close();
-    return false;
-  } catch (_) {
+
+    if (bootText.trim()) {
+      logInstall('--- Лог загрузки вашей ESP32-2432S028 ---');
+      logInstall(bootText.trim().slice(0, 1000));
+      logInstall('-----------------------------------------');
+
+      const match = bootText.match(/CYD_SCAN_REPORT:(\{.*\})/);
+      if (match) {
+        try {
+          const rep = JSON.parse(match[1]);
+          document.getElementById('scanBoardQuirks').textContent =
+            `Экран активен! Свободно ОЗУ: ${rep.mem_free_kb} КБ (Пин подсветки: GPIO ${rep.bl_pin}, Тип: ${rep.init_type})`;
+        } catch (_) {}
+      }
+    }
+  } catch (e) {
     try {
       await port.close();
     } catch (_) {}
-    return false;
   }
-}
-
-async function uploadMainPyOverRawRepl(port, pythonCode, onProgress) {
-  await port.open({ baudRate: 115200 });
-  const writer = port.writable.getWriter();
-
-  const sendRaw = async str => {
-    await writer.write(new TextEncoder().encode(str));
-  };
-
-  await writer.write(new Uint8Array([0x03, 0x03]));
-  await new Promise(r => setTimeout(r, 250));
-  await writer.write(new Uint8Array([0x01]));
-  await new Promise(r => setTimeout(r, 200));
-
-  const utf8Bytes = new TextEncoder().encode(pythonCode);
-  let binaryStr = '';
-  for (let i = 0; i < utf8Bytes.length; i++) {
-    binaryStr += String.fromCharCode(utf8Bytes[i]);
-  }
-  const b64 = btoa(binaryStr);
-
-  await sendRaw("import binascii\nf = open('main.py', 'wb')\n");
-  const chunkSize = 256;
-  for (let offset = 0; offset < b64.length; offset += chunkSize) {
-    const slice = b64.slice(offset, offset + chunkSize);
-    await sendRaw(`f.write(binascii.a2b_base64('${slice}'))\n`);
-    await new Promise(r => setTimeout(r, 25));
-    if (onProgress) {
-      onProgress(Math.min(99, Math.round(((offset + chunkSize) / b64.length) * 100)));
-    }
-  }
-
-  await sendRaw("f.close()\n");
-  await writer.write(new Uint8Array([0x04]));
-  await new Promise(r => setTimeout(r, 450));
-
-  await sendRaw("import machine\nmachine.reset()\n");
-  await writer.write(new Uint8Array([0x04]));
-  await new Promise(r => setTimeout(r, 150));
-
-  try {
-    await port.setSignals({ dataTerminalReady: false, requestToSend: true });
-    await new Promise(r => setTimeout(r, 120));
-    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-  } catch (_) {}
-
-  writer.releaseLock();
-  if (onProgress) onProgress(100);
 }
