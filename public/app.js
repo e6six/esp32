@@ -1312,32 +1312,27 @@ async function runOneClickInstall(widgetId, forceFullEngineFlash = false) {
     logInstall('✅ Файловая система виджетов (0x343000) и настройки (0x3E3000) записаны!');
     setProgress(88, 'Выполняем аппаратный сброс платы (импульс RTS) и включаем экран...');
 
-    // НАСТОЯЩИЙ АППАРАТНЫЙ СБРОС (исправление бага HardReset в esptool-js, который не дёргал RTS=true!)
+    // НАСТОЯЩИЙ АППАРАТНЫЙ СБРОС (однократный чистый импульс RTS без повторного открытия порта!)
     try {
       await transport.setDTR(false);
       await transport.setRTS(true);
       await new Promise(r => setTimeout(r, 180));
       await transport.setRTS(false);
       await transport.setDTR(false);
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 150));
     } catch (_) {}
 
     try {
       await transport.disconnect();
     } catch (_) {}
 
-    // Перехватываем стартовый лог загрузки платы на 115200 бод!
-    setProgress(92, 'Читаем диагностический отчёт запуска экрана (115200 бод)...');
-    logInstall('🔍 Считываем лог старта вашей платы после перезагрузки...');
-    await capturePostResetBootLog(port);
-
     const pill = document.getElementById('usbStatusPill');
     pill.classList.add('connected');
     document.getElementById('usbStatusText').textContent = 'USB: Плата активна';
 
-    setProgress(100, '🎉 Готово! Проверьте экран вашей платы ESP32-2432S028!');
-    logInstall('\n🎉 ЗАПИСЬ И ПЕРЕЗАПУСК ЗАВЕРШЕНЫ!');
-    logInstall('👉 Посмотрите на экран платы. Если у вашей ревизии чипа ESP32-D0WD-V3 другой тип матрицы (экран белый или инвертирован) — нажмите кнопку «Профиль 2», «Профиль 3» или «Профиль 4» в блоке Сканера!');
+    setProgress(100, '🎉 Готово! Экран вашей платы ESP32-2432S028 запущен!');
+    logInstall('\n🎉 ЗАПИСЬ И ЧИСТЫЙ ПЕРЕЗАПУСК ЗАВЕРШЕНЫ!');
+    logInstall('👉 Экран платы сейчас включится (через ~0.5 сек после перезагрузки).');
   } catch (err) {
     console.error('Ошибка:', err);
     setProgress(0, `❌ Ошибка: ${err.message}`);
