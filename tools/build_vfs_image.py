@@ -485,8 +485,8 @@ def set_top_title(txt):
     r = ru_row(top_left_box, txt, 0x00E5FF, sz=14)
     r.set_pos(0, 0)
 
-dot_wifi = mk_box(top, 306, 8, 8, 8, 0x00E5FF, 4)
-lbl_top_right = mk_lbl(top, "METEO OK • " + state["last_sync_str"], lv.font_montserrat_12, 0x38BDF8)
+dot_wifi = mk_box(top, 306, 8, 8, 8, 0x18F018, 4)
+lbl_top_right = mk_lbl(top, "METEO OK • " + state["last_sync_str"], lv.font_montserrat_12, 0x22E522)
 lbl_top_right.align(lv.ALIGN.RIGHT_MID, -18, 0)
 
 body = lv.obj(scr)
@@ -504,32 +504,26 @@ def fmt_temp(v):
     return ("+{:.0f}°C" if v > 0 else "{:.0f}°C").format(v)
 
 def get_sync_badge_text():
-    if state["wifi_connecting"]:
-        return "Wi-Fi ({}c)...".format(state["connect_sec"])
     if state["wifi_ok"]:
-        return "CETb OK • {}".format(state["last_sync_str"])
+        return "WIFI OK • {}".format(state["last_sync_str"])
+    if state["wifi_connecting"]:
+        return "WIFI ({}c)...".format(state["connect_sec"])
     return "METEO OK • {}".format(state["last_sync_str"])
 
 def update_top_status_bar():
     p = (state["ticks"] % 2 == 0)
-    if state["wifi_connecting"]:
-        lbl_top_right.set_text("Wi-Fi... {}c".format(state["connect_sec"]))
-        lbl_top_right.set_style_text_color(che(0xFBBF24), 0)
-        dot_wifi.set_style_bg_color(che(0xFBBF24 if p else 0x78350F), 0)
-    elif state["wifi_ok"]:
+    dot_wifi.set_style_bg_color(che(0x18F018 if p else 0x086008), 0)
+    if state["wifi_ok"]:
         lbl_top_right.set_text("WIFI OK • {} ({:d}:{:02d})".format(
             state["last_sync_str"], state["next_sync_sec"] // 60, state["next_sync_sec"] % 60
         ))
-        lbl_top_right.set_style_text_color(che(0x10B981), 0)
-        dot_wifi.set_style_bg_color(che(0x10B981 if p else 0x064E3B), 0)
-    elif state["wifi_err"]:
-        lbl_top_right.set_text("METEO • {}".format(state["last_sync_str"]))
-        lbl_top_right.set_style_text_color(che(0xFB7185), 0)
-        dot_wifi.set_style_bg_color(che(0xEF4444 if p else 0x7F1D1D), 0)
+        lbl_top_right.set_style_text_color(che(0x22E522), 0)
+    elif state["wifi_connecting"]:
+        lbl_top_right.set_text("WIFI... {}c".format(state["connect_sec"]))
+        lbl_top_right.set_style_text_color(che(0x38BDF8), 0)
     else:
         lbl_top_right.set_text("METEO OK • {}".format(state["last_sync_str"]))
-        lbl_top_right.set_style_text_color(che(0x38BDF8), 0)
-        dot_wifi.set_style_bg_color(che(0x00E5FF if p else 0x0369A1), 0)
+        lbl_top_right.set_style_text_color(che(0x22E522), 0)
 
 def days_in_month(y, m):
     dm = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
@@ -840,31 +834,38 @@ timer_btn = lv.timer_create(poll_controls, 80, None)
 timer_btn.set_repeat_count(-1)
 
 wlan = None
+wifi_stage = 0
 
 def start_wifi_nonblocking():
-    global wlan
+    global wlan, wifi_stage
     if not WIFI_SSID:
         return
     try:
         import network
-        wlan = network.WLAN(network.STA_IF)
-        wlan.active(False)
-        time.sleep_ms(40)
-        wlan.active(True)
+        if wlan is None:
+            wlan = network.WLAN(network.STA_IF)
+        if not wlan.active():
+            wlan.active(True)
+        if wlan.isconnected():
+            state["wifi_ok"] = True
+            state["wifi_connecting"] = False
+            state["wifi_err"] = False
+            wifi_stage = 2
+            update_top_status_bar()
+            return
         state["connect_sec"] = 0
         state["wifi_connecting"] = True
         state["wifi_err"] = False
+        wifi_stage = 1
         update_top_status_bar()
-        wlan.connect(WIFI_SSID, WIFI_PASS)
     except Exception:
         state["wifi_connecting"] = False
-        state["wifi_err"] = True
+        state["wifi_err"] = False
         update_top_status_bar()
 
 def sync_ntp_and_weather():
     lbl_top_right.set_text("METEO SYNC...")
-    dot_wifi.set_style_bg_color(che(0x00E5FF), 0)
-    led_b.value(0)
+    dot_wifi.set_style_bg_color(che(0x18F018), 0)
     try:
         import ntptime
         ntptime.settime()
@@ -892,7 +893,6 @@ def sync_ntp_and_weather():
                 break
         except Exception:
             pass
-    led_b.value(1)
     t_now = get_dt()
     state["last_sync_str"] = "{:02d}:{:02d}".format(t_now[3], t_now[4])
     state["sync_count"] += 1
@@ -900,7 +900,7 @@ def sync_ntp_and_weather():
     render_current()
 
 def tick_cb(t):
-    global current_idx
+    global current_idx, wifi_stage
     state["ticks"] += 1
     if state["ticks"] == 1 and WIFI_SSID:
         start_wifi_nonblocking()
@@ -911,10 +911,30 @@ def tick_cb(t):
                 state["wifi_ok"] = True
                 state["wifi_connecting"] = False
                 state["wifi_err"] = False
+                wifi_stage = 2
                 sync_ntp_and_weather()
-            elif state["connect_sec"] > 22:
+            elif wifi_stage == 1:
+                wifi_stage = 2
+                try:
+                    wlan.config(pm=0)
+                except Exception:
+                    pass
+                try:
+                    wlan.config(txpower=14)
+                except Exception:
+                    pass
+                try:
+                    wlan.connect(WIFI_SSID, WIFI_PASS)
+                except Exception:
+                    pass
+            elif state["connect_sec"] in (10, 20):
+                try:
+                    wlan.connect(WIFI_SSID, WIFI_PASS)
+                except Exception:
+                    pass
+            elif state["connect_sec"] > 28:
                 state["wifi_connecting"] = False
-                state["wifi_err"] = True
+                state["wifi_err"] = False
         except Exception:
             pass
     elif state["wifi_ok"] and wlan is not None:
@@ -929,7 +949,7 @@ def tick_cb(t):
                     start_wifi_nonblocking()
             except Exception:
                 pass
-    elif state["wifi_err"] and WIFI_SSID and state["ticks"] % 60 == 0:
+    elif not state["wifi_ok"] and not state["wifi_connecting"] and WIFI_SSID and state["ticks"] % 60 == 0:
         start_wifi_nonblocking()
 
     update_top_status_bar()
