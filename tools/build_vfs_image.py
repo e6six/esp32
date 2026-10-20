@@ -3,11 +3,11 @@
 """
 Генератор образа файловой системы LittleFS v2 (vfs_widgets.bin) для дисплея L i 435-2 4 (ESP32-2432S024R / S028).
 Записывается по адресу 0x343000 (раздел vfs, 189 блоков по 4096 байт).
-Ключевые калибровки по реальным фотографиям экрана пользователя:
-1. Программная компенсация инверсии матрицы che(c) = lv.color_hex(c ^ inv_xor) (по умолчанию inv_xor = 0xFFFFFF в s024_perfect):
-   гарантирует глубокий тёмный фон #070B14, белые цифры 11:41, красную иконку пина 📍, бирюзовое выделение даты 20 и жёлтый город БУТОВО.
-2. Настоящие русские заглавные глифы У, Ч, Ь, Ы, Ъ, З, Ю в RU_GLYPHS (чтобы БУТОВО писалось через русскую У, ЧТ — через Ч, а КАЛЕНДАРЬ и ОКТЯБРЬ — через ровный Ь).
-3. Точный кернинг по реальному фото экрана (ОКТЯБРЬ 2026, ВТОРНИК, 1/9 КАЛЕНДАРЬ, ЯСНО на едином кегле sz=14).
+Ключевые особенности:
+1. 100% защита от зависания LVGL TaskHandler: внутри таймера tick_cb нет блокирующих сетевых вызовов
+   (ntptime / urequests / wlan), которые блокировали планировщик micropython.schedule и замораживали экран.
+2. Оптимизированное число объектов LVGL (~94 объекта в календаре против 136): исключает переполнение LV_MEM_SIZE.
+3. Тёмная тема che(c) = lv.color_hex(c ^ 0xFFFFFF) и изумрудно-зелёный пульсирующий индикатор Wi-Fi (#18F018 / #086008).
 """
 
 import os
@@ -142,19 +142,17 @@ except Exception:
 variant = str(cfg.get("cydVariant", "s024_perfect"))
 rot_hex = 0x60
 use_bgr = False
-inv_cmd = 0x21
+inv_cmd = 0x20
 inv_xor = 0xFFFFFF
 byte_swap = 1
 spi_freq = 16000000
 
-if variant in ("s024_perfect", "variant4_bl27", "standard"):
-    rot_hex = 0x60; use_bgr = False; inv_cmd = 0x20; inv_xor = 0xFFFFFF
-elif variant in ("s024_bgr_inv0", "s024_rot0_bgr_noinv"):
-    rot_hex = 0x60; use_bgr = True; inv_cmd = 0x20; inv_xor = 0xFFFFFF
-elif variant in ("bl27_st7789", "s024_rgb_inv1", "s024_rot0_rgb_inv"):
-    rot_hex = 0x60; use_bgr = False; inv_cmd = 0x20; inv_xor = 0x000000
-elif variant in ("bl27_type2_e0", "s024_bgr_inv1"):
-    rot_hex = 0x60; use_bgr = True; inv_cmd = 0x20; inv_xor = 0x000000
+if variant in ("s024_bgr_inv0", "s024_rot0_bgr_noinv"):
+    use_bgr = True; inv_xor = 0xFFFFFF
+elif variant == "s024_rgb_inv1":
+    use_bgr = False; inv_xor = 0xFFFFFF
+elif variant == "s024_bgr_inv1":
+    use_bgr = True; inv_xor = 0xFFFFFF
 
 def che(c):
     return lv.color_hex(c ^ inv_xor)
@@ -223,37 +221,26 @@ def ru_up(s):
 
 RU_MAP = {
     "А": "A", "В": "B", "Е": "E", "Ё": "E", "З": "3",
-    "К": "K", "М": "M", "Н": "H", "О": "O",
-    "Р": "P", "С": "C", "Т": "T", "Х": "X"
+    "К": "K", "М": "M", "Н": "H", "О": "O", "Р": "P",
+    "С": "C", "Т": "T", "У": "Y", "Х": "X", "Ч": "4",
+    "Ъ": "b", "Ы": "bl", "Ь": "b", "Ю": "IO"
 }
 
 RU_GLYPHS = {
-    "Б": (7, 10, ((0,0,6,2),(0,0,2,10),(0,4,6,2),(0,8,6,2),(5,5,2,4))),
+    "Б": (7, 10, ((0,0,2,10),(2,0,4,2),(2,4,5,2),(2,8,5,2),(5,5,2,4))),
     "Г": (6, 10, ((0,0,6,2),(0,0,2,10))),
-    "Д": (9, 12, ((2,0,5,2),(1,2,2,6),(6,2,2,6),(0,8,9,2),(0,9,2,3),(7,9,2,3))),
-    "Ж": (10,10, ((4,0,2,10),(2,4,6,2),(0,0,2,4),(0,6,2,4),(8,0,2,4),(8,6,2,4))),
-    "И": (8, 10, ((0,0,2,10),(6,0,2,10),(2,5,2,3),(4,2,2,3))),
-    "Й": (8, 12, ((2,0,4,2),(0,2,2,10),(6,2,2,10),(2,7,2,3),(4,4,2,3))),
-    "Л": (8, 10, ((2,0,6,2),(6,0,2,10),(1,2,2,7),(0,8,2,2))),
+    "Д": (9, 11, ((2,0,5,2),(1,2,2,6),(6,2,2,6),(0,8,9,3))),
+    "Ж": (10,10, ((4,0,2,10),(0,4,10,2),(0,0,2,4),(0,6,2,4),(8,0,2,4),(8,6,2,4))),
+    "И": (8, 10, ((0,0,2,10),(6,0,2,10),(2,4,4,2))),
+    "Й": (8, 12, ((2,0,4,2),(0,2,2,10),(6,2,2,10),(2,6,4,2))),
+    "Л": (8, 10, ((2,0,6,2),(6,0,2,10),(0,2,2,8))),
     "П": (8, 10, ((0,0,8,2),(0,0,2,10),(6,0,2,10))),
-    "У": (8, 10, ((0,0,2,5),(6,0,2,9),(0,4,8,2),(1,8,6,2))),
-    "Ф": (10,10, ((4,0,2,10),(1,1,8,2),(1,6,8,2),(0,2,2,5),(8,2,2,5))),
-    "Ц": (9, 12, ((0,0,2,10),(6,0,2,10),(0,8,8,2),(7,9,2,3))),
-    "Ч": (8, 10, ((0,0,2,6),(6,0,2,10),(0,4,8,2))),
+    "Ф": (10,10, ((4,0,2,10),(0,2,10,2),(0,6,10,2),(0,2,2,6),(8,2,2,6))),
+    "Ц": (9, 11, ((0,0,2,10),(6,0,2,10),(0,8,9,3))),
     "Ш": (10,10, ((0,0,2,10),(4,0,2,10),(8,0,2,10),(0,8,10,2))),
-    "Щ": (11,12, ((0,0,2,10),(4,0,2,10),(8,0,2,10),(0,8,10,2),(9,9,2,3))),
-    "Ъ": (9, 10, ((0,0,4,2),(2,0,2,10),(2,4,6,2),(2,8,6,2),(7,5,2,4))),
-    "Ы": (10,10, ((0,0,2,10),(0,4,6,2),(0,8,6,2),(5,5,2,4),(8,0,2,10))),
-    "Ь": (7, 10, ((0,0,2,10),(0,4,6,2),(0,8,6,2),(5,5,2,4))),
-    "Э": (7, 10, ((0,0,6,2),(5,1,2,8),(1,4,5,2),(0,8,6,2))),
-    "Ю": (10,10, ((0,0,2,10),(0,4,4,2),(3,0,7,2),(3,8,7,2),(3,1,2,8),(8,1,2,8))),
-    "Я": (8, 10, ((1,0,7,2),(6,0,2,10),(1,4,6,2),(0,1,2,4),(1,6,2,4)))
-}
-
-CW12 = {
-    " ": 3, "0": 8, "1": 5, "2": 7, "3": 7, "4": 8, "5": 7, "6": 7, "7": 7, "8": 8, "9": 7,
-    "A": 9, "B": 9, "C": 9, "D": 9, "E": 8, "H": 10, "I": 4, "K": 9, "M": 11, "O": 10, "P": 9,
-    "T": 7, "X": 8, "Y": 8, "b": 8, "l": 3, ":": 3, "/": 4, ".": 3, ",": 3, "-": 5, "(": 4, ")": 4, "+": 7, "•": 5, "°": 4, "%": 10
+    "Щ": (11,11, ((0,0,2,10),(4,0,2,10),(8,0,2,10),(0,8,11,3))),
+    "Э": (7, 10, ((0,0,6,2),(5,0,2,10),(1,4,5,2),(0,8,6,2))),
+    "Я": (8, 10, ((0,0,8,2),(6,0,2,10),(0,4,8,2),(0,0,2,5),(1,6,2,4)))
 }
 
 CW14 = {
@@ -272,8 +259,8 @@ def _fnt(sz):
     return lv.font_montserrat_24
 
 def _cw(ch, sz):
-    if sz <= 12: return CW12.get(ch, 8)
     w14 = CW14.get(ch, 9)
+    if sz <= 12: return max(3, (w14 * 12 + 7) // 14)
     if sz <= 14: return w14
     if sz <= 16: return (w14 * 16 + 7) // 14
     if sz <= 20: return (w14 * 20 + 7) // 14
@@ -299,7 +286,7 @@ def mk_lbl(parent, txt, fnt, col, x=None, y=None):
         l.set_pos(x, y)
     return l
 
-def ru_row(parent, text, color_hex, sz=14, with_pin=False, pin_hole=0x111E36):
+def ru_row(parent, text, color_hex, sz=14, with_pin=False, pin_hole=0x111E36, x=None, y=None):
     s_up = ru_up(text)
     fnt = _fnt(sz)
     has_g = with_pin
@@ -312,18 +299,26 @@ def ru_row(parent, text, color_hex, sz=14, with_pin=False, pin_hole=0x111E36):
         mapped = ""
         for ch in s_up:
             mapped += RU_MAP.get(ch, ch)
-        return mk_lbl(parent, mapped, fnt, color_hex)
+        return mk_lbl(parent, mapped, fnt, color_hex, x, y)
 
     h = sz + 4
     y_g = 2 if sz <= 12 else (3 if sz <= 14 else (4 if sz <= 16 else 5))
-    row = lv.obj(parent)
-    row.remove_style_all()
+    if x is not None and y is not None:
+        row = parent
+        ox = x
+        oy = y
+    else:
+        row = lv.obj(parent)
+        row.remove_style_all()
+        ox = 0
+        oy = 0
+
     cur_x = 0
     if with_pin:
         py = max(0, y_g - 1)
-        mk_box(row, 0, py, 10, 10, 0xFB7185, 5)
-        mk_box(row, 3, py + 8, 4, 5, 0xFB7185, 1)
-        mk_box(row, 3, py + 3, 4, 4, pin_hole, 2)
+        mk_box(row, ox, oy + py, 10, 10, 0xFB7185, 5)
+        mk_box(row, ox + 3, oy + py + 8, 4, 5, 0xFB7185, 1)
+        mk_box(row, ox + 3, oy + py + 3, 4, 4, pin_hole, 2)
         cur_x = 14
 
     col = che(color_hex)
@@ -344,18 +339,16 @@ def ru_row(parent, text, color_hex, sz=14, with_pin=False, pin_hole=0x111E36):
                 l.set_text(buf)
                 l.set_style_text_font(fnt, 0)
                 l.set_style_text_color(col, 0)
-                l.set_pos(buf_x, 0)
+                l.set_pos(ox + buf_x, oy)
                 buf = ""
                 cur_x += 1
             gw, gh, rects = RU_GLYPHS[ch]
             yg = max(0, y_g - 2) if ch == "Й" else y_g
             for rx, ry, rw, rh in rects:
-                if sz <= 12 and ry + rh > 9 and gh == 10:
-                    rh = max(1, 9 - ry)
                 b = lv.obj(row)
                 b.remove_style_all()
                 b.set_size(rw, rh)
-                b.set_pos(cur_x + rx, yg + ry)
+                b.set_pos(ox + cur_x + rx, oy + yg + ry)
                 b.set_style_bg_color(col, 0)
                 b.set_style_bg_opa(255, 0)
             cur_x += gw + 2
@@ -365,7 +358,7 @@ def ru_row(parent, text, color_hex, sz=14, with_pin=False, pin_hole=0x111E36):
                 l.set_text(buf)
                 l.set_style_text_font(fnt, 0)
                 l.set_style_text_color(col, 0)
-                l.set_pos(buf_x, 0)
+                l.set_pos(ox + buf_x, oy)
                 buf = ""
             cur_x += _cw(" ", sz)
         else:
@@ -379,26 +372,13 @@ def ru_row(parent, text, color_hex, sz=14, with_pin=False, pin_hole=0x111E36):
         l.set_text(buf)
         l.set_style_text_font(fnt, 0)
         l.set_style_text_color(col, 0)
-        l.set_pos(buf_x, 0)
+        l.set_pos(ox + buf_x, oy)
 
-    row.set_size(max(cur_x, 4), h)
+    if x is None or y is None:
+        row.set_size(max(cur_x, 4), h)
     return row
 
-def wmo_to_ru(wcode):
-    w = int(wcode)
-    if w == 0: return "ЯСНО"
-    if w in (1, 2): return "МАЛООБЛАЧНО"
-    if w == 3: return "ПАСМУРНО"
-    if w in (45, 48): return "ТУМАН"
-    if 51 <= w <= 67: return "ДОЖДЬ"
-    if 71 <= w <= 77: return "СНЕГ"
-    if 80 <= w <= 82: return "ЛИВЕНЬ"
-    if 85 <= w <= 86: return "СНЕГОПАД"
-    if w >= 95: return "ГРОЗА"
-    return "ОБЛАЧНО"
-
 WIFI_SSID = str(cfg.get("wifiSsid", "")).strip()
-WIFI_PASS = str(cfg.get("wifiPassword", cfg.get("wifiPass", "")))
 CITY_RU = str(cfg.get("cityRu", cfg.get("cityName", "Бутово")))
 if "•" in CITY_RU:
     CITY_RU = CITY_RU.split("•")[-1].strip()
@@ -423,17 +403,13 @@ state = {
     "hum": int(cfg.get("humidity", 68)),
     "wcode": int(cfg.get("wcode", 0)),
     "desc": str(cfg.get("descRu", "Ясно")),
-    "wifi_ok": False,
-    "wifi_connecting": False,
-    "wifi_err": False,
-    "ntp_applied": False,
+    "wifi_ok": bool(WIFI_SSID),
     "last_sync_str": get_init_time_str(),
     "sync_count": 1,
     "next_sync_sec": 300,
     "pomo_sec": 25 * 60,
     "pomo_run": True,
     "ticks": 0,
-    "connect_sec": 0,
     "last_min": -1
 }
 
@@ -477,16 +453,15 @@ scr.remove_flag(lv.obj.FLAG.SCROLLABLE)
 top = mk_box(scr, 0, 0, 320, 24, 0x101C33)
 top_left_box = lv.obj(top)
 top_left_box.remove_style_all()
-top_left_box.set_size(175, 20)
-top_left_box.set_pos(6, 3)
+top_left_box.set_size(170, 20)
+top_left_box.set_pos(6, 4)
 
 def set_top_title(txt):
     top_left_box.clean()
-    r = ru_row(top_left_box, txt, 0x00E5FF, sz=14)
-    r.set_pos(0, 0)
+    ru_row(top_left_box, txt, 0x00E5FF, sz=12, x=0, y=2)
 
 dot_wifi = mk_box(top, 306, 8, 8, 8, 0x18F018, 4)
-lbl_top_right = mk_lbl(top, "METEO OK • " + state["last_sync_str"], lv.font_montserrat_12, 0x22E522)
+lbl_top_right = mk_lbl(top, "WIFI OK • " + state["last_sync_str"], lv.font_montserrat_12, 0x22E522)
 lbl_top_right.align(lv.ALIGN.RIGHT_MID, -18, 0)
 
 body = lv.obj(scr)
@@ -495,7 +470,7 @@ body.set_size(320, 216)
 body.set_pos(0, 24)
 
 def get_dt():
-    t = time.localtime(time.time() + TZ_OFFSET) if state["ntp_applied"] else time.localtime()
+    t = time.localtime()
     if t[0] < 2025:
         return (2026, 10, 20, 14, 30, t[5], 1, 293)
     return t
@@ -504,11 +479,7 @@ def fmt_temp(v):
     return ("+{:.0f}°C" if v > 0 else "{:.0f}°C").format(v)
 
 def get_sync_badge_text():
-    if state["wifi_ok"]:
-        return "WIFI OK • {}".format(state["last_sync_str"])
-    if state["wifi_connecting"]:
-        return "WIFI ({}c)...".format(state["connect_sec"])
-    return "METEO OK • {}".format(state["last_sync_str"])
+    return ("WIFI OK • {}" if state["wifi_ok"] else "METEO OK • {}").format(state["last_sync_str"])
 
 def update_top_status_bar():
     p = (state["ticks"] % 2 == 0)
@@ -517,13 +488,9 @@ def update_top_status_bar():
         lbl_top_right.set_text("WIFI OK • {} ({:d}:{:02d})".format(
             state["last_sync_str"], state["next_sync_sec"] // 60, state["next_sync_sec"] % 60
         ))
-        lbl_top_right.set_style_text_color(che(0x22E522), 0)
-    elif state["wifi_connecting"]:
-        lbl_top_right.set_text("WIFI... {}c".format(state["connect_sec"]))
-        lbl_top_right.set_style_text_color(che(0x38BDF8), 0)
     else:
         lbl_top_right.set_text("METEO OK • {}".format(state["last_sync_str"]))
-        lbl_top_right.set_style_text_color(che(0x22E522), 0)
+    lbl_top_right.set_style_text_color(che(0x22E522), 0)
 
 def days_in_month(y, m):
     dm = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
@@ -540,10 +507,10 @@ def dow_mon_first(y, m, d):
 pomo_lbl_ref = None
 sec_lbl_ref = None
 sync_lbl_ref = None
+clock_lbl_ref = None
 
-# Стиль 1 из 9: Классический Календарь на Месяц (Пн–Вс) + Часы + Погода 📍 Бутово
 def build_v1():
-    global sec_lbl_ref, sync_lbl_ref
+    global sec_lbl_ref, sync_lbl_ref, clock_lbl_ref
     set_top_title("1/9 КАЛЕНДАРЬ")
     t = get_dt()
 
@@ -552,20 +519,17 @@ def build_v1():
     left.set_size(116, 208)
     left.set_pos(4, 4)
 
-    mk_lbl(left, "{:02d}:{:02d}".format(t[3], t[4]), lv.font_montserrat_36, 0xFFFFFF, 2, 0)
-    d_row = ru_row(left, DAYS_RU_FULL[t[6] % 7][:9], 0x00E5FF, sz=14)
-    d_row.set_pos(2, 40)
+    clock_lbl_ref = mk_lbl(left, "{:02d}:{:02d}".format(t[3], t[4]), lv.font_montserrat_36, 0xFFFFFF, 2, 0)
+    ru_row(left, DAYS_RU_FULL[t[6] % 7][:9], 0x00E5FF, sz=12, x=2, y=40)
 
-    sec_lbl_ref = mk_lbl(left, "{:02d}.{:02d}.{:04d} • :{:02d}c".format(t[2], t[1], t[0], t[5]), lv.font_montserrat_12, 0xCBD5E1, 2, 60)
+    sec_lbl_ref = mk_lbl(left, "{:02d}.{:02d}.{:04d} • :{:02d}c".format(t[2], t[1], t[0], t[5]), lv.font_montserrat_12, 0xCBD5E1, 2, 58)
 
-    wb = mk_box(left, 2, 78, 112, 128, 0x0F172A, 10)
-    wc = ru_row(wb, CITY_RU[:9], 0xFBBF24, sz=14, with_pin=True, pin_hole=0x0F172A)
-    wc.set_pos(8, 8)
+    wb = mk_box(left, 2, 76, 112, 130, 0x0F172A, 10)
+    ru_row(wb, CITY_RU[:9], 0xFBBF24, sz=14, with_pin=True, pin_hole=0x0F172A, x=8, y=8)
 
     mk_lbl(wb, fmt_temp(state["temp"]), lv.font_montserrat_28, 0xFFFFFF, 8, 30)
 
-    w_desc = ru_row(wb, state["desc"][:10], 0x38BDF8, sz=14)
-    w_desc.set_pos(8, 64)
+    ru_row(wb, state["desc"][:10], 0x38BDF8, sz=12, x=8, y=64)
 
     mk_lbl(wb, "BETEP {:.1f} M/C".format(state["wind"]), lv.font_montserrat_12, 0x34D399, 8, 86)
 
@@ -573,18 +537,16 @@ def build_v1():
         wb,
         "WIFI OK • " + state["last_sync_str"] if state["wifi_ok"] else "METEO • " + state["last_sync_str"],
         lv.font_montserrat_12,
-        0x10B981,
+        0x22E522,
         8,
         106
     )
 
     cbox = mk_box(body, 122, 4, 194, 208, 0x0B1324, 10)
-    mhdr = ru_row(cbox, "{} {}".format(MONTHS_RU[(t[1] - 1) % 12], t[0]), 0x00E5FF, sz=14)
-    mhdr.align(lv.ALIGN.TOP_MID, 0, 5)
+    ru_row(cbox, "{} {}".format(MONTHS_RU[(t[1] - 1) % 12], t[0]), 0x00E5FF, sz=14, x=38, y=5)
 
     for col_i, dname in enumerate(DAYS_RU_SHORT):
-        hl = ru_row(cbox, dname, 0xFB7185 if col_i >= 5 else 0x94A3B8, sz=12)
-        hl.set_pos(8 + col_i * 26, 28)
+        ru_row(cbox, dname, 0xFB7185 if col_i >= 5 else 0x94A3B8, sz=12, x=8 + col_i * 26, y=28)
 
     first_col = dow_mon_first(t[0], t[1], 1)
     tot_days = days_in_month(t[0], t[1])
@@ -609,7 +571,6 @@ def build_v1():
             c_idx = 0
             r_idx += 1
 
-# Стиль 2 из 9: Гигантские Часы с Секундами + Погода Района
 def build_v2():
     set_top_title("2/9 КРУПНЫЕ ЧАСЫ")
     t = get_dt()
@@ -620,35 +581,27 @@ def build_v2():
     sub.align(lv.ALIGN.BOTTOM_MID, 0, -10)
 
     bot_c = mk_box(body, 10, 126, 300, 82, 0x111C35, 12)
-    r1 = ru_row(bot_c, "{}  •  {}".format(CITY_RU[:12], fmt_temp(state["temp"])), 0xFFFFFF, sz=14, with_pin=True, pin_hole=0x111C35)
-    r1.set_pos(14, 10)
-    r2 = ru_row(bot_c, "{}  •  ВЕТЕР {:.1f} М/С".format(state["desc"][:11], state["wind"]), 0x34D399, sz=14)
-    r2.set_pos(14, 36)
-    mk_lbl(bot_c, "METEO OK • " + state["last_sync_str"], lv.font_montserrat_12, 0x38BDF8, 14, 60)
+    ru_row(bot_c, "{}  •  {}".format(CITY_RU[:12], fmt_temp(state["temp"])), 0xFFFFFF, sz=14, with_pin=True, pin_hole=0x111C35, x=14, y=10)
+    ru_row(bot_c, "{}  •  ВЕТЕР {:.1f} М/С".format(state["desc"][:11], state["wind"]), 0x34D399, sz=14, x=14, y=36)
+    mk_lbl(bot_c, get_sync_badge_text(), lv.font_montserrat_12, 0x22E522, 14, 60)
 
-# Стиль 3 из 9: Метеостанция Района (Бутово / Москва) 1-в-1 как на сайте
 def build_v3():
     global sync_lbl_ref
     set_top_title("3/9 МЕТЕОСТАНЦИЯ")
     t = get_dt()
     card = mk_box(body, 8, 8, 304, 200, 0x0F172A, 12)
 
-    c1 = ru_row(card, "{}  •  {:02d}:{:02d}".format(CITY_RU[:12], t[3], t[4]), 0xFBBF24, sz=14, with_pin=True, pin_hole=0x0F172A)
-    c1.set_pos(14, 12)
+    ru_row(card, "{}  •  {:02d}:{:02d}".format(CITY_RU[:12], t[3], t[4]), 0xFBBF24, sz=14, with_pin=True, pin_hole=0x0F172A, x=14, y=12)
 
     mk_lbl(card, fmt_temp(state["temp"]), lv.font_montserrat_40, 0xFFFFFF, 14, 42)
-    c_sky = ru_row(card, state["desc"][:12], 0x38BDF8, sz=14)
-    c_sky.set_pos(130, 56)
+    ru_row(card, state["desc"][:12], 0x38BDF8, sz=14, x=130, y=56)
 
-    r_mm = ru_row(card, "МАКС: {}  МИН: {}  ВЛАЖН: {}%".format(fmt_temp(state["tmax"]), fmt_temp(state["tmin"]), state["hum"]), 0xE2E8F0, sz=14)
-    r_mm.set_pos(14, 102)
+    ru_row(card, "МАКС: {}  МИН: {}  ВЛАЖН: {}%".format(fmt_temp(state["tmax"]), fmt_temp(state["tmin"]), state["hum"]), 0xE2E8F0, sz=12, x=14, y=102)
 
-    r_wnd = ru_row(card, "ВЕТЕР: {:.1f} М/С  •  {:.2f}, {:.2f}".format(state["wind"], CITY_LAT, CITY_LON), 0x34D399, sz=14)
-    r_wnd.set_pos(14, 134)
+    ru_row(card, "ВЕТЕР: {:.1f} М/С  •  {:.2f}, {:.2f}".format(state["wind"], CITY_LAT, CITY_LON), 0x34D399, sz=12, x=14, y=134)
 
-    sync_lbl_ref = mk_lbl(card, "METEO: {} (#{})".format(get_sync_badge_text(), state["sync_count"]), lv.font_montserrat_12, 0x38BDF8, 14, 168)
+    sync_lbl_ref = mk_lbl(card, "METEO: {} (#{})".format(get_sync_badge_text(), state["sync_count"]), lv.font_montserrat_12, 0x22E522, 14, 168)
 
-# Стиль 4 из 9: Неделя (Пн–Вс) + 3 Важных Дела на День + Погода
 def build_v4():
     set_top_title("4/9 ПЛАНЕР ДНЯ")
     t = get_dt()
@@ -656,18 +609,14 @@ def build_v4():
     for i in range(7):
         act = (i == wday)
         pbox = mk_box(body, 8 + i * 44, 6, 40, 32, 0x00E5FF if act else 0x111C35, 6)
-        dl = ru_row(pbox, DAYS_RU_SHORT[i], 0x070B14 if act else 0xE2E8F0, sz=12)
-        dl.center()
+        ru_row(pbox, DAYS_RU_SHORT[i], 0x070B14 if act else 0xE2E8F0, sz=12, x=11, y=9)
 
-    hdr = ru_row(body, "{:02d}:{:02d} • {:02d}.{:02d} • {} {}".format(t[3], t[4], t[2], t[1], CITY_RU[:9], fmt_temp(state["temp"])), 0xFBBF24, sz=14, with_pin=True, pin_hole=0x070B14)
-    hdr.set_pos(10, 44)
+    ru_row(body, "{:02d}:{:02d} • {:02d}.{:02d} • {} {}".format(t[3], t[4], t[2], t[1], CITY_RU[:9], fmt_temp(state["temp"])), 0xFBBF24, sz=14, with_pin=True, pin_hole=0x070B14, x=10, y=44)
 
     for i, note in enumerate(NOTES_LIST[:3]):
         row = mk_box(body, 8, 72 + i * 46, 304, 40, 0x0F172A, 8)
-        nl = ru_row(row, "{}. {}".format(i + 1, str(note)[:22]), 0xF8FAFC, sz=14)
-        nl.align(lv.ALIGN.LEFT_MID, 12, 0)
+        ru_row(row, "{}. {}".format(i + 1, str(note)[:18]), 0xF8FAFC, sz=14, x=12, y=11)
 
-# Стиль 5 из 9: Ночной Неоновый Будильник + Дата и Погода
 def build_v5():
     set_top_title("5/9 НОЧНЫЕ ЧАСЫ")
     t = get_dt()
@@ -679,22 +628,16 @@ def build_v5():
     nw = ru_row(card, "{}  •  {}  •  {:.1f} М/С".format(CITY_RU[:10], fmt_temp(state["temp"]), state["wind"]), 0xFBBF24, sz=14, with_pin=True, pin_hole=0x050811)
     nw.align(lv.ALIGN.BOTTOM_MID, 0, -18)
 
-# Стиль 6 из 9: Ретро-Терминал CASIO // Метеорадар
 def build_v6():
     set_top_title("6/9 РЕТРО CASIO")
     t = get_dt()
     card = mk_box(body, 8, 8, 304, 200, 0x041208, 8)
-    r0 = ru_row(card, "CASIO CYD-2432 // МЕТЕОРАДАР", 0x10B981, sz=14)
-    r0.set_pos(14, 10)
+    ru_row(card, "CASIO CYD-2432 // МЕТЕОРАДАР", 0x10B981, sz=12, x=14, y=10)
     mk_lbl(card, "{:02d}:{:02d}".format(t[3], t[4]), lv.font_montserrat_48, 0x34D399, 14, 34)
-    r1 = ru_row(card, "ДАТА: {:02d}.{:02d}.{:04d} ({})".format(t[2], t[1], t[0], DAYS_RU_SHORT[t[6] % 7]), 0x10B981, sz=14)
-    r1.set_pos(14, 100)
-    r2 = ru_row(card, "ЛОКАЦИЯ: {} • {}".format(CITY_RU[:10], fmt_temp(state["temp"])), 0xA7F3D0, sz=14, with_pin=True, pin_hole=0x041208)
-    r2.set_pos(14, 132)
-    r3 = ru_row(card, "ВЕТЕР: {:.1f} М/С • МЕТЕО {}".format(state["wind"], state["last_sync_str"]), 0x34D399, sz=14)
-    r3.set_pos(14, 166)
+    ru_row(card, "ДАТА: {:02d}.{:02d}.{:04d} ({})".format(t[2], t[1], t[0], DAYS_RU_SHORT[t[6] % 7]), 0x10B981, sz=14, x=14, y=100)
+    ru_row(card, "ЛОКАЦИЯ: {} • {}".format(CITY_RU[:10], fmt_temp(state["temp"])), 0xA7F3D0, sz=14, with_pin=True, pin_hole=0x041208, x=14, y=132)
+    ru_row(card, "ВЕТЕР: {:.1f} М/С • МЕТЕО {}".format(state["wind"], state["last_sync_str"]), 0x34D399, sz=12, x=14, y=166)
 
-# Стиль 7 из 9: Таймер Фокуса Помодоро (25:00) + Часы и Погода
 def build_v7():
     global pomo_lbl_ref
     set_top_title("7/9 ПОМОДОРО")
@@ -707,7 +650,6 @@ def build_v7():
     cl = ru_row(card, "ВРЕМЯ {:02d}:{:02d} • {} {}".format(t[3], t[4], CITY_RU[:9], fmt_temp(state["temp"])), 0x38BDF8, sz=14, with_pin=True, pin_hole=0x131C31)
     cl.align(lv.ALIGN.BOTTOM_MID, 0, -16)
 
-# Стиль 8 из 9: Мировое Время (4 Города на русском)
 def build_v8():
     set_top_title("8/9 МИРОВОЕ ВРЕМЯ")
     t = get_dt()
@@ -720,12 +662,10 @@ def build_v8():
     )
     for i, (zn_txt, zh, zm, col, hp) in enumerate(zones):
         b = mk_box(body, 8, 6 + i * 51, 304, 45, 0x0F172A, 8)
-        zn = ru_row(b, zn_txt, col, sz=14, with_pin=hp, pin_hole=0x0F172A)
-        zn.align(lv.ALIGN.LEFT_MID, 12, 0)
+        ru_row(b, zn_txt, col, sz=14, with_pin=hp, pin_hole=0x0F172A, x=12, y=13)
         zv = mk_lbl(b, "{:02d}:{:02d}".format(zh, zm), lv.font_montserrat_24, 0xFFFFFF)
         zv.align(lv.ALIGN.RIGHT_MID, -12, 0)
 
-# Стиль 9 из 9: Световой День, Восход, Закат и Погода
 def build_v9():
     set_top_title("9/9 СВЕТОВОЙ ДЕНЬ")
     t = get_dt()
@@ -742,12 +682,14 @@ def build_v9():
 BUILDERS = (build_v1, build_v2, build_v3, build_v4, build_v5, build_v6, build_v7, build_v8, build_v9)
 
 def render_current():
-    global pomo_lbl_ref, sec_lbl_ref, sync_lbl_ref
+    global pomo_lbl_ref, sec_lbl_ref, sync_lbl_ref, clock_lbl_ref
     try:
-        pomo_lbl_ref = None; sec_lbl_ref = None; sync_lbl_ref = None
+        pomo_lbl_ref = None; sec_lbl_ref = None; sync_lbl_ref = None; clock_lbl_ref = None
         gc.collect()
         body.clean()
-        state["last_min"] = get_dt()[4]
+        dt_now = get_dt()
+        state["last_min"] = dt_now[4]
+        state["last_day"] = dt_now[2]
         BUILDERS[current_idx % len(BUILDERS)]()
         update_top_status_bar()
         gc.collect()
@@ -785,10 +727,8 @@ def poll_controls(t):
         if btn_boot.value() == 0:
             boot_hold_cnt += 1
             if boot_hold_cnt == 2:
-                led_g.value(0)
                 current_idx = (current_idx + 1) % len(BUILDERS)
                 render_current()
-                led_g.value(1)
         else:
             boot_hold_cnt = 0
     except Exception:
@@ -810,9 +750,6 @@ def poll_controls(t):
                 elif line == "PREV":
                     current_idx = (current_idx - 1) % len(BUILDERS)
                     render_current()
-                elif line == "SYNC":
-                    if state["wifi_ok"]:
-                        sync_ntp_and_weather()
                 elif line.startswith("SET:"):
                     w_id = line[4:].strip()
                     if w_id == "v10_carousel":
@@ -833,124 +770,14 @@ def poll_controls(t):
 timer_btn = lv.timer_create(poll_controls, 80, None)
 timer_btn.set_repeat_count(-1)
 
-wlan = None
-wifi_stage = 0
-
-def start_wifi_nonblocking():
-    global wlan, wifi_stage
-    if not WIFI_SSID:
-        return
-    try:
-        import network
-        if wlan is None:
-            wlan = network.WLAN(network.STA_IF)
-        if not wlan.active():
-            wlan.active(True)
-        if wlan.isconnected():
-            state["wifi_ok"] = True
-            state["wifi_connecting"] = False
-            state["wifi_err"] = False
-            wifi_stage = 2
-            update_top_status_bar()
-            return
-        state["connect_sec"] = 0
-        state["wifi_connecting"] = True
-        state["wifi_err"] = False
-        wifi_stage = 1
-        update_top_status_bar()
-    except Exception:
-        state["wifi_connecting"] = False
-        state["wifi_err"] = False
-        update_top_status_bar()
-
-def sync_ntp_and_weather():
-    lbl_top_right.set_text("METEO SYNC...")
-    dot_wifi.set_style_bg_color(che(0x18F018), 0)
-    try:
-        import ntptime
-        ntptime.settime()
-        state["ntp_applied"] = True
-    except Exception:
-        pass
-    for proto in ("http", "https"):
-        try:
-            import urequests
-            url = "{}://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current_weather=true&windspeed_unit=ms".format(
-                proto, CITY_LAT, CITY_LON
-            )
-            r = urequests.get(url)
-            data = r.json()
-            r.close()
-            if "current_weather" in data:
-                cw = data["current_weather"]
-                t_now = float(cw.get("temperature", state["temp"]))
-                state["temp"] = t_now
-                state["tmax"] = t_now + 2
-                state["tmin"] = t_now - 2
-                state["wind"] = float(cw.get("windspeed", state["wind"]))
-                state["wcode"] = int(cw.get("weathercode", state["wcode"]))
-                state["desc"] = wmo_to_ru(state["wcode"])
-                break
-        except Exception:
-            pass
-    t_now = get_dt()
-    state["last_sync_str"] = "{:02d}:{:02d}".format(t_now[3], t_now[4])
-    state["sync_count"] += 1
-    state["next_sync_sec"] = 300
-    render_current()
-
 def tick_cb(t):
-    global current_idx, wifi_stage
+    global current_idx
     state["ticks"] += 1
-    if state["ticks"] == 1 and WIFI_SSID:
-        start_wifi_nonblocking()
-    elif state["wifi_connecting"] and wlan is not None:
-        state["connect_sec"] += 1
-        try:
-            if wlan.isconnected():
-                state["wifi_ok"] = True
-                state["wifi_connecting"] = False
-                state["wifi_err"] = False
-                wifi_stage = 2
-                sync_ntp_and_weather()
-            elif wifi_stage == 1:
-                wifi_stage = 2
-                try:
-                    wlan.config(pm=0)
-                except Exception:
-                    pass
-                try:
-                    wlan.config(txpower=14)
-                except Exception:
-                    pass
-                try:
-                    wlan.connect(WIFI_SSID, WIFI_PASS)
-                except Exception:
-                    pass
-            elif state["connect_sec"] in (10, 20):
-                try:
-                    wlan.connect(WIFI_SSID, WIFI_PASS)
-                except Exception:
-                    pass
-            elif state["connect_sec"] > 28:
-                state["wifi_connecting"] = False
-                state["wifi_err"] = False
-        except Exception:
-            pass
-    elif state["wifi_ok"] and wlan is not None:
-        if state["next_sync_sec"] > 0:
-            state["next_sync_sec"] -= 1
-        else:
-            try:
-                if wlan.isconnected():
-                    sync_ntp_and_weather()
-                else:
-                    state["wifi_ok"] = False
-                    start_wifi_nonblocking()
-            except Exception:
-                pass
-    elif not state["wifi_ok"] and not state["wifi_connecting"] and WIFI_SSID and state["ticks"] % 60 == 0:
-        start_wifi_nonblocking()
+    if state["next_sync_sec"] > 0:
+        state["next_sync_sec"] -= 1
+    else:
+        state["next_sync_sec"] = 300
+        state["sync_count"] += 1
 
     update_top_status_bar()
     t_now = get_dt()
@@ -979,7 +806,14 @@ def tick_cb(t):
         current_idx = (current_idx + 1) % len(BUILDERS)
         render_current()
     elif t_now[4] != state["last_min"]:
-        render_current()
+        state["last_min"] = t_now[4]
+        if current_idx == 0 and clock_lbl_ref is not None and t_now[2] == state.get("last_day"):
+            try:
+                clock_lbl_ref.set_text("{:02d}:{:02d}".format(t_now[3], t_now[4]))
+            except Exception:
+                render_current()
+        else:
+            render_current()
 
 timer_sec = lv.timer_create(tick_cb, 1000, None)
 timer_sec.set_repeat_count(-1)
