@@ -1234,8 +1234,8 @@ async function runOneClickInstall(widgetId, forceFullEngineFlash = false) {
       document.getElementById('scanUsbMac').textContent = `${bridgeName} (${vid}:${pid})`;
     }
 
-    setProgress(18, 'Скачиваем образ файловой системы виджетов (96 КБ)...');
-    const vfsResp = await fetch('/firmware/vfs_widgets.bin?t=' + Date.now());
+    setProgress(18, 'Скачиваем образ файловой системы виджетов (104 КБ)...');
+    const vfsResp = await fetch('/firmware/vfs_widgets.bin?t=' + Date.now(), { cache: 'no-store' });
     if (!vfsResp.ok) throw new Error('Не удалось загрузить /firmware/vfs_widgets.bin');
     const vfsUint8 = new Uint8Array(await vfsResp.arrayBuffer());
     const patchedOffset = patchVfsImageWithConfig(vfsUint8, state.config);

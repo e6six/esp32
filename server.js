@@ -929,12 +929,16 @@ const server = http.createServer(async (req, res) => {
       const stat = fs.statSync(filePath);
       res.writeHead(200, {
         'Content-Type': contentType,
-        'Content-Length': stat.size
+        'Content-Length': stat.size,
+        'Cache-Control': 'no-store, no-cache, must-revalidate'
       });
       fs.createReadStream(filePath).pipe(res);
     } else {
       const indexFile = path.join(PUBLIC_DIR, 'index.html');
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store, no-cache, must-revalidate'
+      });
       fs.createReadStream(indexFile).pipe(res);
     }
   } catch (err) {
