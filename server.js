@@ -100,16 +100,19 @@ function loadConfig() {
       const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
       const parsed = { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
       const validVariants = ['s024_perfect', 's024_bgr_inv0', 's024_rgb_inv1', 's024_bgr_inv1'];
-      if (!validVariants.includes(parsed.cydVariant)) {
+      if (!validVariants.includes(parsed.cydVariant) || parsed.configSchemaVersion !== 2) {
         parsed.cydVariant = 's024_perfect';
+        parsed.configSchemaVersion = 2;
+        saveConfig(parsed);
       }
       return parsed;
     }
   } catch (e) {
     console.error('Ошибка чтения config.json:', e.message);
   }
-  saveConfig(DEFAULT_CONFIG);
-  return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  const initial = { ...DEFAULT_CONFIG, configSchemaVersion: 2 };
+  saveConfig(initial);
+  return JSON.parse(JSON.stringify(initial));
 }
 
 function saveConfig(cfg) {
