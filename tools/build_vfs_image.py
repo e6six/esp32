@@ -139,21 +139,6 @@ try:
 except Exception:
     pass
 
-# Драйвер Wi-Fi резервирует внутреннюю память ESP32. Инициализируем его до
-# выделения буферов дисплея и объектов LVGL, иначе он может не запуститься.
-wlan = None
-if str(cfg.get("wifiSsid", "")).strip():
-    try:
-        import network
-        gc.collect()
-        wlan = network.WLAN(network.STA_IF)
-        wlan.active(True)
-        print("CYD_WIFI_INIT_OK")
-    except Exception as e:
-        wlan = None
-        print("CYD_WIFI_INIT_ERR:", e)
-gc.collect()
-
 variant = str(cfg.get("cydVariant", "s024_perfect"))
 rot_hex = 0x60
 use_bgr = False
@@ -717,11 +702,15 @@ render_current()
 # Сеть работает в отдельном потоке: блокирующие DNS/HTTP/NTP не вызываются
 # из LVGL-таймеров. Поток меняет только данные, отрисовка остаётся в LVGL.
 def network_worker():
+    import network
     import ntptime
+    import socket
     try:
         import urequests as requests
     except ImportError:
         import requests
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
     while True:
         try:
             if not wlan.isconnected():
@@ -779,7 +768,7 @@ def network_worker():
         state["next_sync_sec"] = 300
         time.sleep(300)
 
-if WIFI_SSID and wlan is not None:
+if WIFI_SSID:
     try:
         import _thread
         _thread.start_new_thread(network_worker, ())
