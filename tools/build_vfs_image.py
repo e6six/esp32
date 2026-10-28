@@ -134,7 +134,7 @@ gc.collect()
 
 try:
     rt = cfg.get("rtcTuple")
-    if isinstance(rt, list) and len(rt) >= 7:
+    if time.localtime()[0] < 2025 and isinstance(rt, list) and len(rt) >= 7:
         machine.RTC().datetime((int(rt[0]), int(rt[1]), int(rt[2]), int(rt[3]), int(rt[4]), int(rt[5]), int(rt[6]), 0))
 except Exception:
     pass
@@ -403,10 +403,11 @@ state = {
     "hum": int(cfg.get("humidity", 68)),
     "wcode": int(cfg.get("wcode", 0)),
     "desc": str(cfg.get("descRu", "Ясно")),
-    "wifi_ok": bool(WIFI_SSID),
-    "last_sync_str": get_init_time_str(),
-    "sync_count": 1,
-    "next_sync_sec": 300,
+    "wifi_ok": False,
+    "last_sync_str": "--:--",
+    "sync_count": 0,
+    "next_sync_sec": 0,
+    "weather_changed": False,
     "pomo_sec": 25 * 60,
     "pomo_run": True,
     "ticks": 0,
@@ -479,17 +480,17 @@ def fmt_temp(v):
     return ("+{:.0f}°C" if v > 0 else "{:.0f}°C").format(v)
 
 def get_sync_badge_text():
-    return ("WIFI OK • {}" if state["wifi_ok"] else "METEO OK • {}").format(state["last_sync_str"])
+    return ("METEO • {}" if state["sync_count"] else "CACHED").format(state["last_sync_str"])
 
 def update_top_status_bar():
     p = (state["ticks"] % 2 == 0)
-    dot_wifi.set_style_bg_color(che(0x18F018 if p else 0x086008), 0)
+    dot_wifi.set_style_bg_color(che((0x18F018 if p else 0x086008) if state["wifi_ok"] else 0x993333), 0)
     if state["wifi_ok"]:
         lbl_top_right.set_text("WIFI OK • {} ({:d}:{:02d})".format(
             state["last_sync_str"], state["next_sync_sec"] // 60, state["next_sync_sec"] % 60
         ))
     else:
-        lbl_top_right.set_text("METEO OK • {}".format(state["last_sync_str"]))
+        lbl_top_right.set_text("OFFLINE / CACHED")
     lbl_top_right.set_style_text_color(che(0x22E522), 0)
 
 def days_in_month(y, m):
@@ -535,7 +536,7 @@ def build_v1():
 
     sync_lbl_ref = mk_lbl(
         wb,
-        "WIFI OK • " + state["last_sync_str"] if state["wifi_ok"] else "METEO • " + state["last_sync_str"],
+        get_sync_badge_text(),
         lv.font_montserrat_12,
         0x22E522,
         8,
@@ -698,6 +699,82 @@ def render_current():
 
 render_current()
 
+# Сеть работает в отдельном потоке: блокирующие DNS/HTTP/NTP не вызываются
+# из LVGL-таймеров. Поток меняет только данные, отрисовка остаётся в LVGL.
+def network_worker():
+    import network
+    import ntptime
+    import socket
+    try:
+        import urequests as requests
+    except ImportError:
+        import requests
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    while True:
+        try:
+            if not wlan.isconnected():
+                wlan.connect(WIFI_SSID, str(cfg.get("wifiPassword", "")))
+                for _ in range(20):
+                    if wlan.isconnected():
+                        break
+                    time.sleep(1)
+            state["wifi_ok"] = wlan.isconnected()
+            if state["wifi_ok"]:
+                try:
+                    ntptime.settime()  # RTC после NTP содержит UTC
+                    local = time.localtime(time.time() + TZ_OFFSET)
+                    machine.RTC().datetime((local[0], local[1], local[2], local[6], local[3], local[4], local[5], 0))
+                    state["weather_changed"] = True
+                    print("CYD_NTP_OK")
+                except Exception as e:
+                    print("CYD_NTP_ERR:", e)
+                response = None
+                try:
+                    # Единицы ветра явно заданы: иначе Open-Meteo вернёт км/ч.
+                    url = "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto&wind_speed_unit=ms".format(CITY_LAT, CITY_LON)
+                    response = requests.get(url)
+                    if response.status_code != 200:
+                        raise ValueError("HTTP {}".format(response.status_code))
+                    data = response.json()
+                    current = data["current"]
+                    temp = float(current["temperature_2m"])
+                    wind = float(current["wind_speed_10m"])
+                    code = int(current["weather_code"])
+                    hum = int(current["relative_humidity_2m"])
+                    tmax = float(data["daily"]["temperature_2m_max"][0])
+                    tmin = float(data["daily"]["temperature_2m_min"][0])
+                    desc = "Ясно" if code == 0 else "Облачно" if code <= 3 else "Туман" if code in (45, 48) else "Дождь" if code < 71 else "Снег" if code < 80 else "Осадки"
+                    state["temp"] = temp
+                    state["wind"] = wind
+                    state["hum"] = hum
+                    state["tmax"] = tmax
+                    state["tmin"] = tmin
+                    state["wcode"] = code
+                    state["desc"] = desc
+                    now = time.localtime()
+                    state["last_sync_str"] = "{:02d}:{:02d}".format(now[3], now[4])
+                    state["sync_count"] += 1
+                    state["weather_changed"] = True
+                    print("CYD_WEATHER_OK")
+                except Exception as e:
+                    print("CYD_WEATHER_ERR:", e)
+                finally:
+                    if response is not None:
+                        response.close()
+        except Exception as e:
+            state["wifi_ok"] = False
+            print("CYD_WIFI_ERR:", e)
+        state["next_sync_sec"] = 300
+        time.sleep(300)
+
+if WIFI_SSID:
+    try:
+        import _thread
+        _thread.start_new_thread(network_worker, ())
+    except Exception as e:
+        print("CYD_NETWORK_START_ERR:", e)
+
 def print_diag_report():
     try:
         rep = {
@@ -775,9 +852,9 @@ def tick_cb(t):
     state["ticks"] += 1
     if state["next_sync_sec"] > 0:
         state["next_sync_sec"] -= 1
-    else:
-        state["next_sync_sec"] = 300
-        state["sync_count"] += 1
+    if state["weather_changed"]:
+        state["weather_changed"] = False
+        render_current()
 
     update_top_status_bar()
     t_now = get_dt()
@@ -788,7 +865,7 @@ def tick_cb(t):
             pass
     if current_idx == 0 and sync_lbl_ref is not None:
         try:
-            sync_lbl_ref.set_text("WIFI OK • " + state["last_sync_str"] if state["wifi_ok"] else "METEO • " + state["last_sync_str"])
+            sync_lbl_ref.set_text(get_sync_badge_text())
         except Exception:
             pass
 

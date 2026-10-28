@@ -1214,10 +1214,10 @@ async function runOneClickInstall(widgetId, forceFullEngineFlash = false) {
     const nowStr = new Date().toLocaleTimeString('ru-RU');
     const wc = state.config.weatherCache || {};
     logInstall(`🚀 Выбран виджет: "${wInfo.title}" (${activeWidgetId})`);
-    logInstall(`🕒 Точное время ПК (вшито в часы RTC платы): ${nowStr}`);
+    logInstall(`🕒 Начальное время ПК (после отключения питания потребуется NTP): ${nowStr}`);
     logInstall(`🌤️ Погода (${state.config.city} → 📍 ${getShortCityRu()}): ${fmtTempStr(wc.tempC)}, ${wc.descRu || 'Пасмурно'}, ветер ${wc.windMs ?? 3.8} м/с (${wc.source || 'Метеостанция'})`);
     logInstall(`🟨 Профиль матрицы L i 435-2 4: ${state.config.cydVariant}`);
-    logInstall(`📶 Фоновый Wi-Fi платы: ${state.config.wifiSsid ? state.config.wifiSsid + ' (2.4 ГГц)' : '(время и погода переданы напрямую с сайта!)'}`);
+    logInstall(`📶 Фоновый Wi-Fi платы: ${state.config.wifiSsid ? state.config.wifiSsid + ' (2.4 ГГц)' : '(нет Wi-Fi: данные при установке, после отключения питания могут устареть)' }`);
 
     try {
       if (port.readable || port.writable) {
@@ -1240,6 +1240,7 @@ async function runOneClickInstall(widgetId, forceFullEngineFlash = false) {
     const vfsUint8 = new Uint8Array(await vfsResp.arrayBuffer());
     const patchedOffset = patchVfsImageWithConfig(vfsUint8, state.config);
     logInstall(`📦 Конфигурация виджета "${activeWidgetId}" вшита прямо в /config.txt образа (смещение ${patchedOffset})`);
+    if (patchedOffset < 0) throw new Error("Метка конфигурации в образе не найдена; прошивка остановлена");
     const cfgSectorUint8 = buildConfigFlashSector(state.config);
 
     const filesToFlash = [];
